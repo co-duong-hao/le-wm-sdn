@@ -51,6 +51,16 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Local research data and experiment outputs
+datasets/
+data/
+runs/
+outputs/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+
 # Translations
 *.mo
 *.pot

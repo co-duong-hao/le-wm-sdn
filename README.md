@@ -1,184 +1,170 @@
+# LeWM-SDN Demo
 
-# LeWorldModel
-### Stable End-to-End Joint-Embedding Predictive Architecture from Pixels
+Branch này là bản demo nghiên cứu ban đầu cho hướng áp dụng ý tưởng
+LeWorldModel vào bài toán phát hiện DDoS trên dữ liệu network flow.
 
-[Lucas Maes*](https://x.com/lucasmaes_), [Quentin Le Lidec*](https://quentinll.github.io/), [Damien Scieur](https://scholar.google.com/citations?user=hNscQzgAAAAJ&hl=fr), [Yann LeCun](https://yann.lecun.com/) and [Randall Balestriero](https://randallbalestriero.github.io/)
+Demo hiện tại chỉ dùng các script trong `tools/`. Phần code LeWM gốc chưa được
+tích hợp vào pipeline train SDN chính thức.
 
-**Abstract:** Joint Embedding Predictive Architectures (JEPAs) offer a compelling framework for learning world models in compact latent spaces, yet existing methods remain fragile, relying on complex multi-term losses, exponential moving averages, pretrained encoders, or auxiliary supervision to avoid representation collapse. In this work, we introduce LeWorldModel (LeWM), the first JEPA that trains stably end-to-end from raw pixels using only two loss terms: a next-embedding prediction loss and a regularizer enforcing Gaussian-distributed latent embeddings. This reduces tunable loss hyperparameters from six to one compared to the only existing end-to-end alternative. With ~15M parameters trainable on a single GPU in a few hours, LeWM plans up to 48× faster than foundation-model-based world models while remaining competitive across diverse 2D and 3D control tasks. Beyond control, we show that LeWM's latent space encodes meaningful physical structure through probing of physical quantities. Surprise evaluation confirms that the model reliably detects physically implausible events.
+## Mục tiêu demo
 
-<p align="center">
-   <b>[ <a href="https://arxiv.org/pdf/2603.19312v1">Paper</a> | <a href="https://huggingface.co/collections/quentinll/lewm">Checkpoints &amp; Data</a> | <a href="https://le-wm.github.io/">Website</a> ]</b>
-</p>
+Demo chứng minh được các bước:
 
-<br>
+1. Đọc được dataset CICDDoS2019 bản CSV.
+2. Tạo được subset nhỏ, cân bằng để debug pipeline.
+3. Chạy được baseline V0 làm mốc tham chiếu.
+4. Chạy được prototype LeWM-SDN V1 dùng lỗi dự đoán latent kế tiếp làm anomaly
+   score.
 
-<p align="center">
-  <img src="assets/lewm.gif" width="80%">
-</p>
+Đây chưa phải sản phẩm cuối và chưa kết luận LeWM-SDN tốt hơn ML/DL truyền
+thống. Đây là mốc V0/V1 để kiểm tra pipeline và tín hiệu `prediction surprise`.
 
-If you find this code useful, please reference it in your paper:
-```
-@article{maes_lelidec2026lewm,
-  title={LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels},
-  author={Maes, Lucas and Le Lidec, Quentin and Scieur, Damien and LeCun, Yann and Balestriero, Randall},
-  journal={arXiv preprint},
-  year={2026}
-}
-```
+## Yêu cầu môi trường
 
-## Using the code
-This codebase builds on [stable-worldmodel](https://github.com/galilai-group/stable-worldmodel) for environment management, planning, and evaluation, and [stable-pretraining](https://github.com/galilai-group/stable-pretraining) for training. Together they reduce this repository to its core contribution: the model architecture and training objective.
+Các script demo chỉ cần:
 
-**Installation:**
-```bash
-uv venv --python=3.10
-source .venv/bin/activate
-uv pip install stable-worldmodel[train,env]
-```
+- Python 3.10+.
+- `numpy`.
+- `pandas`.
 
-## Data
+Không cần `torch`, `stable-worldmodel` hoặc `scikit-learn` để chạy demo V0/V1.
 
-Datasets use the HDF5 format for fast loading. Download the data from [HuggingFace](https://huggingface.co/collections/quentinll/lewm) and decompress with:
+Kiểm tra nhanh:
 
-```bash
-tar --zstd -xvf archive.tar.zst
+```powershell
+python -c "import numpy, pandas; print('ok')"
 ```
 
-Place the extracted `.h5` files under `$STABLEWM_HOME` (defaults to `~/.stable-wm/`). You can override this path:
-```bash
-export STABLEWM_HOME=/path/to/your/storage
+## Chuẩn bị dataset
+
+Tải CICDDoS2019 từ trang chính thức:
+
+<https://www.unb.ca/cic/datasets/ddos-2019.html>
+
+Chọn thư mục `CSVs`, tải và giải nén ra ngoài repo, ví dụ:
+
+```text
+C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs
 ```
 
-Dataset names are specified without the `.h5` extension. For example, `config/train/data/pusht.yaml` references `pusht_expert_train`, which resolves to `$STABLEWM_HOME/pusht_expert_train.h5`.
+Không đặt dataset vào git. Repo đã ignore:
 
-## Training
-
-`jepa.py` contains the PyTorch implementation of LeWM. Training is configured via [Hydra](https://hydra.cc/) config files under `config/train/`.
-
-Before training, set your WandB `entity` and `project` in `config/train/lewm.yaml`:
-```yaml
-wandb:
-  config:
-    entity: your_entity
-    project: your_project
+```text
+datasets/
+data/
+outputs/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
 ```
 
-To launch training:
-```bash
-python train.py data=pusht
+## 1. Kiểm tra dataset
+
+Chạy từ thư mục repo:
+
+```powershell
+cd "C:\Users\ADMIN\OneDrive\Desktop\New folder (2)\le-wm-sdn"
+
+python tools\inspect_cicddos2019.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --max-files 2 --chunksize 50000
 ```
 
-Checkpoints are saved to `$STABLEWM_HOME` upon completion.
+Output cần chú ý:
 
-For baseline scripts, see the stable-worldmodel [scripts](https://github.com/galilai-group/stable-worldmodel/tree/main/scripts/train) folder.
+- `rows`: số flow trong mỗi file.
+- `columns`: số cột gốc.
+- `label column`: cột nhãn.
+- `top labels`: phân bố nhãn.
+- `numeric feature columns`: số feature dạng số dùng được cho model.
 
-## Planning
+## 2. Tạo subset V0
 
-Evaluation configs live under `config/eval/`. Set the `policy` field to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix:
+Dataset gốc rất lớn và lệch lớp mạnh, nên demo dùng subset nhỏ:
 
-```bash
-# ✓ correct
-python eval.py --config-name=pusht.yaml policy=pusht/lewm
-
-# ✗ incorrect
-python eval.py --config-name=pusht.yaml policy=pusht/lewm_object.ckpt
+```powershell
+python tools\make_cicddos2019_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --out "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v0.csv" --max-files 2 --max-per-label 5000 --chunksize 50000
 ```
 
-## Pretrained Checkpoints
+Subset V0 đã dùng trong thí nghiệm:
 
-Pretrained LeWM checkpoints for each environment are mirrored on the Hugging Face
-Hub (model repos), alongside the datasets (dataset repos) in the same collection:
-
-- [`quentinll/lewm-pusht`](https://huggingface.co/quentinll/lewm-pusht)
-- [`quentinll/lewm-cube`](https://huggingface.co/quentinll/lewm-cube)
-- [`quentinll/lewm-tworooms`](https://huggingface.co/quentinll/lewm-tworooms)
-- [`quentinll/lewm-reacher`](https://huggingface.co/quentinll/lewm-reacher)
-
-The full baseline checkpoint suite (PLDM, LeJEPA, IVL, IQL, GCBC, DINO-WM, DINO-WM-noprop)
-is available on [Google Drive](https://drive.google.com/drive/folders/1r31os0d4-rR0mdHc7OlY_e5nh3XT4r4e):
-
-<div align="center">
-
-| Method | two-room | pusht | cube | reacher |
-|:---:|:---:|:---:|:---:|:---:|
-| pldm | ✓ | ✓ | ✓ | ✓ |
-| lejepa | ✓ | ✓ | ✓ | ✓ |
-| ivl | ✓ | ✓ | ✓ | — |
-| iql | ✓ | ✓ | ✓ | — |
-| gcbc | ✓ | ✓ | ✓ | — |
-| dinowm | ✓ | ✓ | — | — |
-| dinowm_noprop | ✓ | ✓ | ✓ | ✓ |
-
-</div>
-
-## Loading a checkpoint
-
-### From the Drive archive
-
-Each tar archive contains two files per checkpoint:
-- `<name>_object.ckpt` — a serialized Python object for convenient loading; this is what `eval.py` and the `stable_worldmodel` API use
-- `<name>_weight.ckpt` — a weights-only checkpoint (`state_dict`) for cases where you want to load weights into your own model instance
-
-Place the extracted files under `$STABLEWM_HOME/` and load via:
-
-```python
-import stable_worldmodel as swm
-
-# Load the cost model (for MPC)
-cost = swm.policy.AutoCostModel('pusht/lewm')
+```text
+15,000 dòng
+82 numeric features
+BENIGN: 5,000
+DrDoS_DNS: 5,000
+DrDoS_LDAP: 5,000
 ```
 
-`AutoCostModel` accepts:
-- `run_name` — checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix
-- `cache_dir` — optional override for the checkpoint root (defaults to `$STABLEWM_HOME`)
+## 3. Chạy baseline V0
 
-The returned module is in `eval` mode with its PyTorch weights accessible via `.state_dict()`.
-
-### From the Hugging Face mirror
-
-The HF model repos ship the LeWM checkpoint as a `weights.pt` (state dict) plus a
-`config.json` describing the model. Convert once to produce the `_object.ckpt`
-that `eval.py` expects:
-
-```bash
-# download weights.pt + config.json
-hf download quentinll/lewm-pusht --local-dir $STABLEWM_HOME/hf_pusht
-
-# convert to object checkpoint under $STABLEWM_HOME/pusht/lewm_object.ckpt
-python - <<'PY'
-import json, torch, stable_pretraining as spt
-from pathlib import Path
-from jepa import JEPA
-from module import ARPredictor, Embedder, MLP
-import stable_worldmodel as swm
-
-src = Path(swm.data.utils.get_cache_dir(), "hf_pusht")
-out = Path(swm.data.utils.get_cache_dir(), "pusht", "lewm_object.ckpt")
-
-cfg = json.loads((src / "config.json").read_text())
-encoder = spt.backbone.utils.vit_hf(
-    cfg["encoder"]["size"],
-    patch_size=cfg["encoder"]["patch_size"],
-    image_size=cfg["encoder"]["image_size"],
-    pretrained=False, use_mask_token=False,
-)
-mlp = lambda k: MLP(input_dim=cfg[k]["input_dim"], output_dim=cfg[k]["output_dim"],
-                    hidden_dim=cfg[k]["hidden_dim"], norm_fn=torch.nn.BatchNorm1d)
-model = JEPA(
-    encoder=encoder,
-    predictor=ARPredictor(**cfg["predictor"]),
-    action_encoder=Embedder(**cfg["action_encoder"]),
-    projector=mlp("projector"),
-    pred_proj=mlp("pred_proj"),
-)
-sd = torch.load(src / "weights.pt", map_location="cpu", weights_only=False)
-model.load_state_dict(sd, strict=True)
-out.parent.mkdir(parents=True, exist_ok=True)
-torch.save(model, out)
-PY
+```powershell
+python tools\baseline_cicddos2019.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v0.csv"
 ```
 
-After conversion, load via `swm.policy.AutoCostModel('pusht/lewm')` as usual.
+Kết quả tham chiếu đã ghi nhận:
 
-## Contact & Contributions
-Feel free to open [issues](https://github.com/lucas-maes/le-wm/issues)! For questions or collaborations, please contact `lucas.maes@mila.quebec`
+```text
+[benign-zscore-anomaly]
+f1    : 0.9169
+auroc : 0.9862
+
+[nearest-centroid-binary]
+f1    : 0.9919
+auroc : 0.9950
+```
+
+Baseline này dùng để kiểm tra pipeline và làm mốc so sánh. Vì subset hiện chỉ có
+2 loại attack và đã được cân bằng, kết quả baseline cao là hợp lý.
+
+## 4. Tạo subset ordered cho V1
+
+V1 dùng các cặp liên tiếp để học dự đoán latent kế tiếp. Tạo subset giữ thứ tự
+dòng trong từng nhãn:
+
+```powershell
+python tools\make_cicddos2019_ordered_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --out "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --max-files 2 --max-per-label 5000 --chunksize 50000
+```
+
+## 5. Chạy LeWM-SDN V1 prototype
+
+```powershell
+python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --split-mode block
+```
+
+Prototype V1 hiện tại:
+
+```text
+flow numeric features
+-> random latent projection
+-> linear next-latent predictor trained on benign pairs
+-> prediction error as anomaly score
+-> validation threshold calibration
+-> test metrics
+```
+
+Dòng kết quả quan trọng trong output:
+
+```text
+[lewm-sdn-v1-validation-calibrated-test]
+accuracy : 0.9306
+precision: 0.9144
+recall   : 0.9885
+f1       : 0.9500
+auroc    : 0.9141
+auprc    : 0.8833
+```
+
+Cách diễn giải:
+
+- `prediction error` trong latent space đã có tín hiệu phát hiện attack.
+- V1 hiện chưa mạnh bằng baseline đơn giản trên subset này.
+- Bước tiếp theo là tạo subset/loader giữ thứ tự thời gian tốt hơn và thay
+  random projection/linear predictor bằng encoder-predictor học được.
+
+## Tài liệu liên quan
+
+- Roadmap nghiên cứu: [`docs/LEWM_SDN_ROADMAP.md`](docs/LEWM_SDN_ROADMAP.md)
+- Hướng dẫn thiết lập CICDDoS2019: [`docs/CICDDoS2019_SETUP.md`](docs/CICDDoS2019_SETUP.md)
+- Cách đọc output và metric: [`docs/HOW_TO_READ_OUTPUTS.md`](docs/HOW_TO_READ_OUTPUTS.md)
+- Nhật ký thí nghiệm: [`docs/EXPERIMENT_LOG.md`](docs/EXPERIMENT_LOG.md)
