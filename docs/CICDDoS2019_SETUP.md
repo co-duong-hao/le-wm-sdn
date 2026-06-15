@@ -71,6 +71,21 @@ python tools\make_cicddos2019_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\
 
 Khi lệnh thử chạy ổn, có thể bỏ `--max-files 2` để tạo subset từ toàn bộ dataset.
 
+## Tạo Subset Giữ Thứ Tự Cho V1
+
+Với LeWM-SDN V1, ta cần các cặp liên tiếp để học dự đoán latent kế tiếp. Vì vậy
+có thêm subset giữ thứ tự dòng trong từng nhãn:
+
+```powershell
+python tools\make_cicddos2019_ordered_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --out "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --max-files 2 --max-per-label 5000 --chunksize 50000
+```
+
+Khác biệt chính:
+
+- `make_cicddos2019_subset.py`: lấy mẫu ngẫu nhiên theo nhãn, tốt cho debug.
+- `make_cicddos2019_ordered_subset.py`: lấy first-N theo thứ tự xuất hiện, tốt
+  hơn cho thí nghiệm world-model ban đầu.
+
 ## Chạy Baseline V0
 
 Sau khi có `subset_v0.csv`, chạy baseline nhẹ:
@@ -96,6 +111,12 @@ một mô hình nhẹ chỉ dùng `numpy`:
 
 ```powershell
 python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v0.csv"
+```
+
+Với subset ordered, chạy:
+
+```powershell
+python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --split-mode block
 ```
 
 Lưu ý: `subset_v0.csv` phù hợp để kiểm tra pipeline nhưng chưa phải tập chuỗi

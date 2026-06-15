@@ -136,3 +136,71 @@ Ghi chú:
   calibration threshold nếu dùng trong pipeline detection.
 - Vẫn chưa phải kết luận cuối vì `subset_v0.csv` là subset debug, chưa phải
   chuỗi traffic đầy đủ theo thời gian.
+
+## V1 Prototype: Ordered Subset Và Block Split
+
+Ngày chạy: 2026-06-15
+
+Mục tiêu:
+
+- Giảm vấn đề phá vỡ thứ tự dòng do subset ngẫu nhiên.
+- Kiểm tra LeWM-SDN V1 trong thiết lập gần với world-model hơn: train/validation/test
+  là các block liên tiếp trong từng nhãn.
+
+Dataset:
+
+- File subset: `C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv`
+- Cách tạo: lấy first-N theo thứ tự xuất hiện của từng nhãn, không random sample.
+- Số dòng: 15,000.
+- Feature numeric: 82.
+- Phân bố nhãn:
+  - DrDoS_DNS: 5,000.
+  - DrDoS_LDAP: 5,000.
+  - BENIGN: 5,000.
+
+Lệnh tạo subset:
+
+```powershell
+python tools\make_cicddos2019_ordered_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --out "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --max-files 2 --max-per-label 5000 --chunksize 50000
+```
+
+Baseline trên ordered subset:
+
+| Baseline | Accuracy | Precision | Recall | F1 | AUROC | AUPRC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| benign-zscore-anomaly | 0.7504 | 0.9562 | 0.6557 | 0.7779 | 0.9715 | 0.9830 |
+| nearest-centroid-binary | 0.9896 | 0.9980 | 0.9863 | 0.9921 | 0.9921 | 0.9969 |
+
+LeWM-SDN V1 lệnh chạy:
+
+```powershell
+python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --split-mode block
+```
+
+Thông tin chạy:
+
+- Latent dim: 32.
+- Split mode: block.
+- Train pairs: 8,998.
+- Train benign pairs: 2,999.
+- Validation pairs: 2,997.
+- Test pairs: 2,998.
+- Train benign threshold q=0.95: 0.636629.
+- Validation best-F1 threshold: 0.297041.
+
+Kết quả LeWM-SDN V1:
+
+| Thiết lập | Accuracy | Precision | Recall | F1 | AUROC | AUPRC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| train benign q=0.95 | 0.3276 | 0.0952 | 0.0010 | 0.0020 | 0.9141 | 0.8833 |
+| validation-calibrated | 0.9306 | 0.9144 | 0.9885 | 0.9500 | 0.9141 | 0.8833 |
+
+Ghi chú:
+
+- Ordered subset + block split làm tín hiệu prediction-surprise rõ hơn:
+  AUROC tăng từ 0.8257 lên 0.9141 so với V1 trên `subset_v0.csv`.
+- Ngưỡng q=0.95 từ train benign vẫn quá bảo thủ, nhưng validation calibration
+  cho F1 test đạt 0.9500.
+- Nearest-centroid baseline vẫn mạnh hơn trên subset này. Kết luận hiện tại là
+  LeWM-SDN V1 có tín hiệu tốt hơn khi giữ thứ tự dòng, nhưng vẫn cần encoder và
+  predictor học được để cạnh tranh với baseline.

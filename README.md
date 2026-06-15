@@ -117,10 +117,19 @@ auroc : 0.9950
 Baseline này dùng để kiểm tra pipeline và làm mốc so sánh. Vì subset hiện chỉ có
 2 loại attack và đã được cân bằng, kết quả baseline cao là hợp lý.
 
-## 4. Chạy LeWM-SDN V1 prototype
+## 4. Tạo subset ordered cho V1
+
+V1 dùng các cặp liên tiếp để học dự đoán latent kế tiếp. Tạo subset giữ thứ tự
+dòng trong từng nhãn:
 
 ```powershell
-python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v0.csv"
+python tools\make_cicddos2019_ordered_subset.py --root "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\CSVs" --out "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --max-files 2 --max-per-label 5000 --chunksize 50000
+```
+
+## 5. Chạy LeWM-SDN V1 prototype
+
+```powershell
+python tools\lewm_sdn_v1_numpy.py --csv "C:\Users\ADMIN\OneDrive\Desktop\datasets\CICDDoS2019\subset_v1_ordered.csv" --split-mode block
 ```
 
 Prototype V1 hiện tại:
@@ -138,12 +147,12 @@ Dòng kết quả quan trọng trong output:
 
 ```text
 [lewm-sdn-v1-validation-calibrated-test]
-accuracy : 0.8649
-precision: 0.8439
-recall   : 0.9714
-f1       : 0.9031
-auroc    : 0.8257
-auprc    : 0.7953
+accuracy : 0.9306
+precision: 0.9144
+recall   : 0.9885
+f1       : 0.9500
+auroc    : 0.9141
+auprc    : 0.8833
 ```
 
 Cách diễn giải:
@@ -159,4 +168,3 @@ Cách diễn giải:
 - Hướng dẫn thiết lập CICDDoS2019: [`docs/CICDDoS2019_SETUP.md`](docs/CICDDoS2019_SETUP.md)
 - Cách đọc output và metric: [`docs/HOW_TO_READ_OUTPUTS.md`](docs/HOW_TO_READ_OUTPUTS.md)
 - Nhật ký thí nghiệm: [`docs/EXPERIMENT_LOG.md`](docs/EXPERIMENT_LOG.md)
-

@@ -78,6 +78,20 @@ def stratified_split(
     return train_idx, val_idx, test_idx
 
 
+def block_split(y: np.ndarray, train_ratio: float, val_ratio: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    train_parts = []
+    val_parts = []
+    test_parts = []
+    for label in np.unique(y):
+        idx = np.flatnonzero(y == label)
+        n_train = max(1, int(len(idx) * train_ratio))
+        n_val = max(1, int(len(idx) * val_ratio))
+        train_parts.append(idx[:n_train])
+        val_parts.append(idx[n_train : n_train + n_val])
+        test_parts.append(idx[n_train + n_val :])
+    return np.concatenate(train_parts), np.concatenate(val_parts), np.concatenate(test_parts)
+
+
 def standardize(x_train: np.ndarray, x_all: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     mean = x_train.mean(axis=0, keepdims=True)
     std = x_train.std(axis=0, keepdims=True)
@@ -202,6 +216,12 @@ def main() -> int:
     parser.add_argument("--latent-dim", type=int, default=32)
     parser.add_argument("--train-ratio", type=float, default=0.6)
     parser.add_argument("--val-ratio", type=float, default=0.2)
+    parser.add_argument(
+        "--split-mode",
+        choices=("stratified", "block"),
+        default="stratified",
+        help="stratified shuffles within labels; block preserves label-local row order.",
+    )
     parser.add_argument("--seed", type=int, default=3072)
     parser.add_argument("--ridge", type=float, default=1e-2)
     parser.add_argument("--threshold-quantile", type=float, default=0.95)
@@ -211,7 +231,10 @@ def main() -> int:
         raise SystemExit("--train-ratio and --val-ratio must be positive and sum to less than 1.")
 
     x, y, feature_cols = load_subset(Path(args.csv).expanduser())
-    train_idx, val_idx, test_idx = stratified_split(y, args.train_ratio, args.val_ratio, args.seed)
+    if args.split_mode == "block":
+        train_idx, val_idx, test_idx = block_split(y, args.train_ratio, args.val_ratio)
+    else:
+        train_idx, val_idx, test_idx = stratified_split(y, args.train_ratio, args.val_ratio, args.seed)
     x_all, _, _ = standardize(x[train_idx], x)
     z, _ = random_encoder(x_all, args.latent_dim, args.seed)
 
@@ -242,6 +265,7 @@ def main() -> int:
     print(f"Rows: {len(y):,}")
     print(f"Numeric features: {len(feature_cols)}")
     print(f"Latent dim: {args.latent_dim}")
+    print(f"Split mode: {args.split_mode}")
     print(f"Train pairs: {len(train_pair_y):,}")
     print(f"Train benign pairs: {int(benign_mask.sum()):,}")
     print(f"Validation pairs: {len(val_pair_y):,}")
