@@ -51,6 +51,18 @@ export STABLEWM_HOME=/path/to/your/storage
 
 Dataset names are specified without the `.h5` extension. For example, `config/train/data/pusht.yaml` references `pusht_expert_train`, which resolves to `$STABLEWM_HOME/pusht_expert_train.h5`.
 
+## Ghi chú nghiên cứu LeWM-SDN
+
+Fork này đang được cải tiến cho hướng nghiên cứu phát hiện DDoS trong lưu lượng
+SDN. Đường chạy LeWM gốc cho bài toán điều khiển từ pixel vẫn được giữ nguyên,
+còn các thành phần dataset/model riêng cho SDN sẽ được thêm dần theo từng phiên
+bản.
+
+- Roadmap nghiên cứu: [`docs/LEWM_SDN_ROADMAP.md`](docs/LEWM_SDN_ROADMAP.md)
+- Hướng dẫn thiết lập CICDDoS2019: [`docs/CICDDoS2019_SETUP.md`](docs/CICDDoS2019_SETUP.md)
+- Cách đọc output và metric: [`docs/HOW_TO_READ_OUTPUTS.md`](docs/HOW_TO_READ_OUTPUTS.md)
+- Công cụ kiểm tra CSV: `python tools/inspect_cicddos2019.py --root <csv-folder>`
+
 ## Training
 
 `jepa.py` contains the PyTorch implementation of LeWM. Training is configured via [Hydra](https://hydra.cc/) config files under `config/train/`.
