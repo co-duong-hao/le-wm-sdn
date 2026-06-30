@@ -71,10 +71,10 @@ python scripts/prepare_unsw_nb15.py \
 ### 2c. NF-UNSW-NB15
 
 Use NF-UNSW-NB15 when a public UNSW-derived NetFlow benchmark is acceptable.
-This project has already downloaded the public RDM archive and converted it to
-the LeWM-SDN graph format.
+The project records NF-UNSW-NB15 metrics in `outputs/eval`, but the raw archive
+and generated `.npz` tensor are intentionally not tracked in Git.
 
-Current local files:
+Expected local files after manual download/conversion:
 
 ```text
 data/raw/nf_unsw_nb15/nf_unsw_nb15_rdm.zip

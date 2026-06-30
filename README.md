@@ -158,14 +158,13 @@ python scripts/generate_synthetic_sdn.py --output data/processed/synthetic_sdn_d
 python scripts/run_numpy_sdn_jepa_experiment.py --data data/processed/synthetic_sdn_ddos.npz --output outputs/eval/numpy_sdn_jepa_experiment.json --history 8 --latent-dim 16 --ridge 1 --alpha 1 --beta 0.2
 ```
 
-The current recorded artifacts include:
+The repository tracks the small recorded metric artifacts:
 
 ```text
 outputs/eval/baseline_comparison.json
 outputs/eval/nf_unsw_nb15_baseline_comparison.json
 outputs/eval/torch_supervised_baselines.json
 outputs/eval/torch_sdn_jepa_eval.json
-outputs/checkpoints/synthetic_torch/synthetic_torch_best.pt
 ```
 
 The standalone NumPy predictive-latent reference reaches F1 = 0.9796 on the
@@ -177,17 +176,18 @@ F1 = 0.0062. This is recorded deliberately: the neural training path now runs,
 but the synthetic benchmark and short CPU schedule are not enough for a final
 scientific claim.
 
-The repository also includes a public NF-UNSW-NB15 graph conversion and
-baseline result:
+The repository also includes the recorded public NF-UNSW-NB15 results:
 
 ```text
-data/processed/nf_unsw_nb15_graph.npz
 outputs/eval/nf_unsw_nb15_public_experiment.md
 outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
-outputs/checkpoints/nf_unsw_torch/nf_unsw_torch_best.pt
 main.pdf
 outputs/eval/paper_build_report.md
 ```
+
+Raw public archives, generated `.npz` tensors, and checkpoint weights are kept
+out of Git. Recreate them with the scripts in `scripts/` and the dataset
+instructions in `docs/DATASETS.md`.
 
 On this public split, supervised logistic regression and NumPy MLP reach
 F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference only

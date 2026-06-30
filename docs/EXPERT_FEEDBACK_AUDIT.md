@@ -11,8 +11,8 @@ there is executable or file-level evidence in the workspace.
 | # | Issue | Current status | Evidence |
 |---:|---|---|---|
 | 1 | No baseline comparison | Addressed for synthetic and public NF-UNSW-NB15 baselines | `outputs/eval/baseline_comparison.json`, `outputs/eval/nf_unsw_nb15_baseline_comparison.json`, `outputs/eval/torch_supervised_baselines.json`, `main.tex` Tables `tab:baseline` and `tab:publicbaseline` |
-| 2 | Dataset is synthetic and too small | Partially addressed | Public NF-UNSW-NB15 was downloaded and converted to `data/processed/nf_unsw_nb15_graph.npz`; PyTorch JEPA has not yet been tuned on it |
-| 3 | NumPy reference is not trained neural JEPA | Addressed as an executable path, not as a strong result | PyTorch Temporal GNN + SDN-JEPA checkpoints exist for synthetic and public NF-UNSW-NB15; public default-threshold F1 is 0.0 |
+| 2 | Dataset is synthetic and too small | Partially addressed | Public NF-UNSW-NB15 was converted locally and the metrics are recorded in `outputs/eval/nf_unsw_nb15_baseline_comparison.json`; PyTorch JEPA has not yet been tuned on it |
+| 3 | NumPy reference is not trained neural JEPA | Addressed as an executable path, not as a strong result | PyTorch Temporal GNN + SDN-JEPA runs were executed for synthetic and public NF-UNSW-NB15; public default-threshold F1 is 0.0 |
 | 4 | Paper length below 12-20 pages | Addressed | MiKTeX `pdflatex` renders `main.pdf` as 16 pages; see `outputs/eval/paper_build_report.md` |
 | 5 | Wrong format, not LNCS | Addressed | `main.tex` uses `\documentclass[runningheads]{llncs}` and `llncs.cls` is present |
 | 6 | Related Work too thin | Addressed in draft | `main.tex` has a Related Work section and about 20-30 bibliography entries |
@@ -56,11 +56,11 @@ results should not be presented as final benchmark evidence.
 
 ## Public Dataset Evidence
 
-The project now includes a public UNSW-derived NetFlow benchmark:
+The project records a public UNSW-derived NetFlow benchmark result. The raw ZIP
+and generated graph tensor are local reproducibility artifacts and are not
+tracked in the conference repo.
 
 ```text
-data/raw/nf_unsw_nb15/nf_unsw_nb15_rdm.zip
-data/processed/nf_unsw_nb15_graph.npz
 outputs/eval/nf_unsw_nb15_baseline_comparison.json
 outputs/eval/nf_unsw_nb15_public_experiment.md
 ```
@@ -89,7 +89,7 @@ Public NF-UNSW-NB15 held-out test metrics:
 
 ## Public Dataset Status
 
-Current files:
+Local files used during the executed run:
 
 ```text
 data/processed/synthetic_sdn_ddos.npz
@@ -98,8 +98,8 @@ data/processed/nf_unsw_nb15_graph.npz
 data/raw/insdn/
 ```
 
-The project now includes one public benchmark conversion and retains converters
-for additional datasets:
+The project includes one recorded public benchmark result and retains converters
+for reproducing or extending the run:
 
 - `scripts/prepare_insdn.py`
 - `scripts/prepare_unsw_nb15.py`
@@ -120,12 +120,12 @@ python eval.py checkpoint=outputs/checkpoints/lewm_sdn/lewm_sdn_best.pt \
 ## Neural JEPA Status
 
 The proposed Temporal GNN + SDN-JEPA path is implemented and has been executed
-on both synthetic and public NF-UNSW-NB15 graphs:
+on both synthetic and public NF-UNSW-NB15 graphs. Checkpoint weights are
+generated artifacts and are not tracked in Git; the recorded evaluation files
+are:
 
 ```text
-outputs/checkpoints/synthetic_torch/synthetic_torch_best.pt
 outputs/eval/torch_sdn_jepa_eval.json
-outputs/checkpoints/nf_unsw_torch/nf_unsw_torch_best.pt
 outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
 ```
 

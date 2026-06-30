@@ -216,11 +216,22 @@ tempCodeRunnerFile.py
 *.synctex.gz
 *.toc
 
-# Dataset extraction cache. Keep raw archives and processed graph tensors.
+# Local datasets and generated tensors. Keep download/conversion instructions
+# and small recorded metrics in Git, not raw benchmark archives.
+data/raw/
+data/processed/
+
+# Dataset extraction cache.
 data/raw/**/extracted/
 
-# Hydra timestamped run folders; keep curated outputs/eval and outputs/checkpoints.
+# Generated training artifacts. Keep curated outputs/eval only.
+outputs/checkpoints/
+
+# Hydra timestamped run folders.
 outputs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Original LeWM media is not needed for the SDN conference artifact.
+assets/lewm.gif
 
 # Ruff stuff:
 .ruff_cache/
