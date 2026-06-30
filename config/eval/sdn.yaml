@@ -20,6 +20,21 @@ anomaly:
   threshold: null
   percentile: 99.0
   threshold_from_normal: true
+  calibration:
+    enabled: true
+    test_fraction: 0.5
+    seed: 3072
+    strategies:
+      quantiles:
+        - 90.0
+        - 95.0
+        - 97.5
+        - 99.0
+      mean_std:
+        - 1.0
+        - 2.0
+        - 3.0
+      best_f1_on_val: true
 
 output:
   path: outputs/eval/sdn_anomaly.json

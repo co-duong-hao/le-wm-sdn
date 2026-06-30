@@ -11,13 +11,13 @@ there is executable or file-level evidence in the workspace.
 | # | Issue | Current status | Evidence |
 |---:|---|---|---|
 | 1 | No baseline comparison | Addressed for synthetic and public NF-UNSW-NB15 baselines | `outputs/eval/baseline_comparison.json`, `outputs/eval/nf_unsw_nb15_baseline_comparison.json`, `outputs/eval/torch_supervised_baselines.json`, `main.tex` Tables `tab:baseline` and `tab:publicbaseline` |
-| 2 | Dataset is synthetic and too small | Partially addressed | Public NF-UNSW-NB15 was converted locally and the metrics are recorded in `outputs/eval/nf_unsw_nb15_baseline_comparison.json`; PyTorch JEPA has not yet been tuned on it |
-| 3 | NumPy reference is not trained neural JEPA | Addressed as an executable path, not as a strong result | PyTorch Temporal GNN + SDN-JEPA runs were executed for synthetic and public NF-UNSW-NB15; public default-threshold F1 is 0.0 |
-| 4 | Paper length below 12-20 pages | Addressed | MiKTeX `pdflatex` renders `main.pdf` as 16 pages; see `outputs/eval/paper_build_report.md` |
+| 2 | Dataset is synthetic and too small | Addressed for this revision | Public NF-UNSW-NB15 was converted locally and the metrics are recorded in `outputs/eval/nf_unsw_nb15_baseline_comparison.json` and `outputs/eval/nf_unsw_torch_sdn_jepa_eval.json` |
+| 3 | NumPy reference is not trained neural JEPA | Improved | PyTorch Temporal GNN + SDN-JEPA was trained for 100 CPU epochs on public NF-UNSW-NB15 and reaches calibrated held-out F1 = 0.8718 |
+| 4 | Paper length below 12-20 pages | Addressed | MiKTeX `pdflatex` renders `main.pdf` as 17 pages; see `outputs/eval/paper_build_report.md` |
 | 5 | Wrong format, not LNCS | Addressed | `main.tex` uses `\documentclass[runningheads]{llncs}` and `llncs.cls` is present |
 | 6 | Related Work too thin | Addressed in draft | `main.tex` has a Related Work section and about 20-30 bibliography entries |
 | 7 | Method lacks detail | Addressed in draft | `main.tex` includes Temporal GNN equations, latent split, SIGReg, anomaly score, and moves unevaluated MPC/CEM mitigation to Future Work |
-| 8 | Contributions mismatch experiments | Improved, still limited | Contributions now state offline/public validation and caveats; public PyTorch JEPA is executed but not competitive |
+| 8 | Contributions mismatch experiments | Improved, still limited | Contributions now state offline/public validation and caveats; public PyTorch JEPA is useful after calibration but still trails supervised baselines |
 | 9 | No figures/diagrams | Addressed | `figures/architecture_pipeline.png`, `dataset_timeline.png`, `baseline_f1_comparison.png`, `score_separation.png` |
 
 ## Baseline Evidence
@@ -85,7 +85,7 @@ Public NF-UNSW-NB15 held-out test metrics:
 | Supervised PyTorch LSTM | 0.9799 | 0.9963 | 0.9880 | 0.9839 |
 | Raw-feature ridge surprise | 0.8000 | 0.0669 | 0.1235 | 0.3676 |
 | LeWM-SDN latent surprise + phase | 0.7273 | 0.0446 | 0.0841 | 0.3527 |
-| PyTorch JEPA sanity check | 0.0000 | 0.0000 | 0.0000 | 0.3285 |
+| PyTorch Temporal GNN JEPA, calibrated | 0.7731 | 0.9994 | 0.8718 | 0.8037 |
 
 ## Public Dataset Status
 
@@ -129,9 +129,11 @@ outputs/eval/torch_sdn_jepa_eval.json
 outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
 ```
 
-Training loss decreased in the recorded CPU sanity checks, but anomaly
-detection quality is poor. This proves the neural code path runs; it does not
-prove the model is competitive.
+Training loss decreased in the recorded CPU sanity checks. The public run was
+extended to 100 epochs with batch size 128, learning rate 2e-4, and calibrated
+threshold selection. The selected calibration threshold reaches held-out test
+F1 = 0.8718, accuracy = 0.8037, and balanced accuracy = 0.7045. A 200-epoch run
+was also tested but produced lower calibrated held-out F1 = 0.8311.
 
 ## Formatting and Paper Status
 
@@ -145,7 +147,7 @@ The workspace contains `llncs.cls`. MiKTeX `pdflatex` renders the paper
 successfully:
 
 ```text
-main.pdf: 16 pages
+main.pdf: 17 pages
 ```
 
 This satisfies the 12-20 page requirement.
@@ -156,6 +158,7 @@ The synthetic-only blocker is resolved by the NF-UNSW-NB15 public benchmark.
 The remaining scientific blockers are:
 
 - PyTorch Temporal GNN + SDN-JEPA has been trained/evaluated on public
-  NF-UNSW-NB15, but it is not competitive and needs tuning/calibration.
+  NF-UNSW-NB15 and is useful after calibration, but it still trails supervised
+  baselines and needs SDN-native validation on InSDN.
 - Remaining work is now quality/tuning work rather than a missing format or
   missing execution path.

@@ -207,7 +207,7 @@ outputs/eval/torch_sdn_jepa_eval.json
 | Supervised PyTorch LSTM | 0.9833 | 0.9833 | 0.9833 | 0.9933 |
 | Raw-feature ridge surprise | 0.7091 | 0.1625 | 0.2644 | 0.8180 |
 | LeWM-SDN latent surprise + phase | 0.9057 | 1.0000 | 0.9505 | 0.9790 |
-| PyTorch Temporal GNN JEPA, 8 epochs | 0.0753 | 0.0032 | 0.0062 | 0.7911 |
+| PyTorch JEPA sanity check | 0.0753 | 0.0032 | 0.0062 | 0.7911 |
 
 ## Interpretation
 
@@ -225,9 +225,10 @@ predicted latent network dynamics rather than by static flow classification.
 However, the supervised baselines solve the generated dataset nearly perfectly,
 including the lightweight boosting baseline, so the synthetic dataset is not
 strong enough for final benchmark claims.
-The PyTorch neural model now trains and evaluates, but its anomaly score is
-weak in the short CPU smoke run. This addresses the previous "not trained"
-defect as an engineering milestone, not as a strong detection result.
+The synthetic PyTorch neural model now trains and evaluates, but its anomaly
+score is weak in the compact sanity-check run. This addresses the previous
+"not trained" defect as an engineering milestone; the stronger neural evidence
+comes from the calibrated public run below.
 
 The public NF-UNSW-NB15 benchmark path has also been executed:
 
@@ -240,20 +241,23 @@ outputs/eval/nf_unsw_nb15_public_experiment.md
 On the public held-out split, supervised logistic regression and NumPy MLP
 reach F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference
 reaches only F1 = 0.0841. This resolves the synthetic-only defect but shows
-that the current anomaly score is not competitive on the public benchmark.
-The public PyTorch Temporal GNN + SDN-JEPA checkpoint also trains and evaluates,
-but its default threshold F1 is 0.0000.
+that the NumPy reference anomaly score is not competitive on the public
+benchmark.
+The public PyTorch Temporal GNN + SDN-JEPA checkpoint was retrained for 100 CPU
+epochs and evaluated with threshold calibration. The default 99th-percentile
+threshold remains poor, but best-F1 threshold selection on a held-out
+calibration split reaches held-out test F1 = 0.8718, accuracy = 0.8037, and
+balanced accuracy = 0.7045.
 
 ## Remaining Work
 
 For final scientific reporting, extend the public benchmark work:
 
-1. Tune and calibrate the PyTorch Temporal GNN + SDN-JEPA on
-   `nf_unsw_nb15_graph.npz`.
-2. Add InSDN, if the UCD/ASEADOS server becomes reachable.
-3. Add UNSW-NB15 train/test CSVs if they can be copied offline into
+1. Add InSDN, if the UCD/ASEADOS server becomes reachable.
+2. Add UNSW-NB15 train/test CSVs if they can be copied offline into
    `data/raw/unsw_nb15`.
-4. Add CICIDS2017 or CICDDoS2019 for DDoS-focused external validation.
+3. Add CICIDS2017 or CICDDoS2019 for DDoS-focused external validation.
+4. Tune larger Temporal GNN JEPA configurations when GPU training is available.
 
 Public dataset availability checked on 2026-06-29:
 
@@ -276,8 +280,9 @@ environment with PyTorch installed and run:
 ```
 
 The current paper draft now uses Springer LNCS format and includes figures,
-baseline comparison, method equations, SIGReg details, and MPC/CEM planning
-formulas. The PyTorch training path has been executed on synthetic data. The
-public-dataset concern is resolved at benchmark-path level by NF-UNSW-NB15;
-public-data PyTorch JEPA tuning remains open. LNCS page-count verification is
-complete: MiKTeX `pdflatex` renders `main.pdf` as 16 pages.
+baseline comparison, method equations, SIGReg details, and a Future Work
+mitigation-planning hook. The PyTorch training path has been executed on
+synthetic data and on public NF-UNSW-NB15. The public-data PyTorch JEPA result
+is useful after calibration, although broader SDN-native validation remains
+open. LNCS page-count verification is
+complete: MiKTeX `pdflatex` renders `main.pdf` as 17 pages.

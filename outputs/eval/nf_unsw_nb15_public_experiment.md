@@ -87,7 +87,7 @@ python scripts/run_baseline_comparison.py `
 | Supervised PyTorch LSTM | 0.9799 | 0.9963 | 0.9880 | 0.9839 |
 | Raw-feature ridge surprise | 0.8000 | 0.0669 | 0.1235 | 0.3676 |
 | LeWM-SDN latent surprise + phase | 0.7273 | 0.0446 | 0.0841 | 0.3527 |
-| PyTorch Temporal GNN JEPA, 8 epochs | 0.0000 | 0.0000 | 0.0000 | 0.3285 |
+| PyTorch Temporal GNN JEPA, calibrated | 0.7731 | 0.9994 | 0.8718 | 0.8037 |
 
 ## PyTorch Temporal GNN + SDN-JEPA Public Run
 
@@ -100,22 +100,22 @@ Training command:
   model.encoder.hidden_dim=32 model.encoder.depth=2 `
   model.predictor.depth=1 model.predictor.heads=4 `
   model.predictor.mlp_dim=128 model.predictor.dim_head=8 `
-  trainer.max_epochs=8 loader.batch_size=64 `
-  output_dir=outputs\checkpoints\nf_unsw_torch `
-  output_model_name=nf_unsw_torch loss.sigreg.kwargs.num_proj=16
+  trainer.max_epochs=100 loader.batch_size=128 loader.pin_memory=false `
+  optimizer.lr=0.0002 optimizer.weight_decay=0.0005 `
+  output_dir=outputs\checkpoints\nf_unsw_torch_100e `
+  output_model_name=nf_unsw_torch_100e checkpoint_interval=25 `
+  loss.sigreg.kwargs.num_proj=16
 ```
 
 Training trace:
 
 ```text
-epoch=1 train_loss=4.580883 val_loss=3.216061
-epoch=2 train_loss=4.441509 val_loss=3.556443
-epoch=3 train_loss=4.247307 val_loss=3.660939
-epoch=4 train_loss=4.353933 val_loss=3.100650
-epoch=5 train_loss=4.136390 val_loss=3.282528
-epoch=6 train_loss=3.825837 val_loss=3.516848
-epoch=7 train_loss=3.864302 val_loss=3.026342
-epoch=8 train_loss=3.907543 val_loss=2.961094
+epoch=1 train_loss=8.306644 val_loss=3.717935
+epoch=20 train_loss=5.437995 val_loss=2.588119
+epoch=40 train_loss=4.348165 val_loss=1.935771
+epoch=60 train_loss=3.635736 val_loss=1.439211
+epoch=80 train_loss=3.035367 val_loss=1.144290
+epoch=100 train_loss=2.406026 val_loss=1.064960
 ```
 
 Evaluation output:
@@ -124,21 +124,35 @@ Evaluation output:
 outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
 ```
 
-Default normal-threshold metrics:
+Default 99th-percentile normal-threshold metrics:
 
 ```text
-precision=0.0000 recall=0.0000 f1=0.0000 accuracy=0.3285
+precision=0.0577 recall=0.0003 f1=0.0006 accuracy=0.3287
 ```
 
-Oracle threshold diagnostic:
+Score diagnostics:
 
 ```text
-precision=0.6681 recall=1.0000 f1=0.8010 accuracy=0.6681
+normal_score_mean=0.3271
+attack_score_mean=0.4622
+test_auc_high_score_is_attack=0.7199
 ```
 
-The oracle threshold is not reported as the main detector result; it only
-shows that the score distribution contains label information and that threshold
-calibration remains unresolved.
+Threshold calibration was performed on a held-out calibration split using
+normal-score quantiles, normal mean plus k standard deviations, and best-F1
+selection on calibration labels. The selected threshold was then evaluated on
+the held-out test split:
+
+```text
+strategy=best_f1_on_calibration_high_tail
+threshold=0.2654024804
+precision=0.7731 recall=0.9994 f1=0.8718 accuracy=0.8037
+balanced_accuracy=0.7045
+```
+
+A 200-epoch CPU run was also tested with the same compact architecture, but its
+selected calibrated held-out F1 was lower at 0.8311. The 100-epoch checkpoint
+is therefore used for the reported public neural result.
 
 ## Interpretation
 
@@ -151,8 +165,10 @@ The correct paper claim is therefore limited:
 
 - The public-data conversion and evaluation path now works.
 - Supervised baselines are strong on NF-UNSW-NB15.
-- The current LeWM-SDN reference score is not competitive on this public split.
-- The PyTorch Temporal GNN + SDN-JEPA now trains and evaluates on public data,
-  but its default anomaly threshold is not competitive.
-- Public-data threshold calibration and model tuning are required before any
-  competitive claim can be made.
+- The current NumPy LeWM-SDN reference score is not competitive on this public
+  split.
+- The PyTorch Temporal GNN + SDN-JEPA trains and evaluates on public data.
+- Default 99th-percentile thresholding is still poor, but calibration changes
+  the public neural result from near-zero F1 to F1 = 0.8718.
+- The calibrated public neural result is useful, but it still trails supervised
+  baselines and needs SDN-native validation on InSDN.

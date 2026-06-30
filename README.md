@@ -194,11 +194,11 @@ instructions in `docs/DATASETS.md`.
 
 On this public split, supervised logistic regression and NumPy MLP reach
 F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference only
-reaches F1 = 0.0841. The public PyTorch Temporal GNN + SDN-JEPA sanity check
-trains successfully but reaches F1 = 0.0000 with the default normal-score
-threshold. This is a negative but important public benchmark result and should
-be read as a calibration/tuning limitation, not as evidence that the controlled
-anomaly-only result transfers yet.
+reaches F1 = 0.0841. A 100-epoch public PyTorch Temporal GNN + SDN-JEPA run
+with threshold selection on a held-out calibration split reaches test
+F1 = 0.8718, accuracy = 0.8037, and balanced accuracy = 0.7045. The default
+99th-percentile normal threshold still fails, so calibration is part of the
+reported neural detector.
 
 The current recorded report is:
 

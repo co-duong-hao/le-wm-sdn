@@ -184,10 +184,15 @@ def public_baseline_bars():
     torch_path = Path("outputs/eval/nf_unsw_torch_sdn_jepa_eval.json")
     if torch_path.exists():
         torch_payload = json.loads(torch_path.read_text())
+        torch_metrics = torch_payload.get("metrics", {})
+        calibration = torch_payload.get("threshold_calibration", {})
+        selected = calibration.get("selected_by_calibration_f1")
+        if selected is not None:
+            torch_metrics = selected["test_metrics"]
         results = results + [
             {
-                "method": "temporal_gnn_jepa_public",
-                "metrics": torch_payload["metrics"],
+                "method": "calibrated_temporal_gnn_jepa_public",
+                "metrics": torch_metrics,
             }
         ]
 
@@ -201,7 +206,7 @@ def public_baseline_bars():
         "supervised_torch_lstm": "Torch\nLSTM",
         "raw_feature_ridge_surprise": "Raw ridge\nsurprise",
         "lewm_sdn_latent_surprise_phase": "LeWM-SDN\nlatent +\nphase",
-        "temporal_gnn_jepa_public": "Temporal\nGNN\nJEPA",
+        "calibrated_temporal_gnn_jepa_public": "Calibrated\nTemporal\nGNN JEPA",
     }
     names = [short_names.get(r["method"], r["method"].replace("_", "\n")) for r in results]
     f1 = [r["metrics"]["f1"] for r in results]
