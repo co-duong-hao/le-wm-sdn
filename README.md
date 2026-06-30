@@ -167,9 +167,12 @@ outputs/eval/torch_supervised_baselines.json
 outputs/eval/torch_sdn_jepa_eval.json
 ```
 
-The standalone NumPy predictive-latent reference reaches F1 = 0.9796 on the
-generated dataset; the fairer baseline-comparison protocol reports F1 = 0.9505.
-A lightweight NumPy gradient-boosting baseline reaches F1 = 0.9897.
+The main positive result is in the anomaly-only setting, where attack labels
+are not used during training. The standalone NumPy predictive-latent reference
+reaches F1 = 0.9796 on the generated dataset, slightly above one-class feature
+distance at F1 = 0.9717 and far above raw-feature ridge surprise at F1 = 0.2644.
+The stricter aligned baseline-comparison protocol reports F1 = 0.9505.
+A lightweight supervised NumPy gradient-boosting baseline reaches F1 = 0.9897.
 Supervised PyTorch baselines reach F1 = 0.9875 for MLP and F1 = 0.9833 for
 CNN/LSTM, while the short PyTorch Temporal GNN + SDN-JEPA smoke run reaches only
 F1 = 0.0062. This is recorded deliberately: the neural training path now runs,
@@ -193,7 +196,9 @@ On this public split, supervised logistic regression and NumPy MLP reach
 F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference only
 reaches F1 = 0.0841. The public PyTorch Temporal GNN + SDN-JEPA smoke run
 trains successfully but reaches F1 = 0.0000 with the default normal-score
-threshold. This is a negative but important benchmark result.
+threshold. This is a negative but important public benchmark result and should
+be read as a calibration/tuning limitation, not as evidence that the controlled
+anomaly-only result transfers yet.
 
 The current recorded report is:
 

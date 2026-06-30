@@ -43,16 +43,22 @@ to the content subspace, and detects DDoS using next-latent prediction surprise
 plus phase drift in the progress subspace. In response to early expert review,
 the current version also adds baseline comparison, a Springer LNCS format,
 architecture and result figures, a public NF-UNSW-NB15 benchmark conversion,
-and a more explicit method description. On the generated 1,200-timestep graph
-dataset, the NumPy LeWM-SDN reference detector reaches F1 $=0.9796$, while
-supervised logistic regression and a shallow MLP reach F1 $=1.0000$. On the
-public NF-UNSW-NB15 graph test split, supervised logistic regression and NumPy
-MLP reach F1 $=0.9908$, while the current LeWM-SDN latent surprise score only
-reaches F1 $=0.0841$. Small 8-epoch PyTorch temporal GNN JEPA runs decrease
-validation loss on both synthetic and public graphs, but the public run obtains
-F1 $=0$ under the default normal-score threshold. These results should be
-interpreted as honest prototype validation rather than a claim of superiority
-over ML/DL baselines.
+and a more explicit method description. The main positive result is not against
+fully supervised classifiers, but in the label-free anomaly-only setting. On
+the generated 1,200-timestep graph dataset, the NumPy LeWM-SDN reference
+detector trains without attack labels and reaches F1 $=0.9796$, slightly above
+one-class feature distance (F1 $=0.9717$) and far above raw-feature ridge
+surprise (F1 $=0.2644$). Under the stricter aligned comparison protocol it
+still reaches F1 $=0.9505$. Supervised logistic regression and a shallow MLP
+reach F1 $=1.0000$, showing that labels remain highly effective when they are
+available. On the public NF-UNSW-NB15 graph test split, supervised logistic
+regression and NumPy MLP reach F1 $=0.9908$, while the current LeWM-SDN latent
+surprise score only reaches F1 $=0.0841$. Small 8-epoch PyTorch temporal GNN
+JEPA runs decrease validation loss on both synthetic and public graphs, but
+the public run obtains F1 $=0$ under the default normal-score threshold. These
+results position LeWM-SDN as a promising normal-only predictive detector in
+controlled SDN dynamics, while also identifying public-data calibration and
+neural tuning as unresolved limitations.
 
 \keywords{Software-Defined Networking \and DDoS Detection \and World Models
 \and Joint-Embedding Predictive Architecture \and Temporal Graph Neural
@@ -126,16 +132,20 @@ This revision makes four contributions, with validation status made explicit:
   one-class feature distance, supervised logistic regression, shallow MLP,
   gradient-boosted stumps, CNN, LSTM, raw-feature next-state prediction, the
   NumPy LeWM-SDN reference, and a small trained PyTorch temporal GNN JEPA.
+  The comparison explicitly separates label-free anomaly detectors from
+  label-supervised classifiers so that the contribution is not overstated.
   \item It provides public-dataset adapters for InSDN, UNSW-NB15, and generic
   NetFlow CSVs, and executes a public NF-UNSW-NB15 graph benchmark.
 \end{enumerate}
 
 The first two contributions are implemented in the PyTorch code but still need
-full public-benchmark tuning. The third contribution is executed on both the
-synthetic graph and the public NF-UNSW-NB15 graph, although the public result
-is unfavorable to the current anomaly score. The fourth contribution is now an
-executed reproducibility path for NF-UNSW-NB15 and a prepared path for InSDN,
-UNSW-NB15 CSV, CICDDoS, TON-IoT, and Bot-IoT.
+full public-benchmark tuning. The third contribution gives the paper its
+clearest positive anchor: in a normal-only synthetic setting, latent predictive
+surprise improves over raw-feature next-state surprise and is competitive with
+one-class distance. The public NF-UNSW-NB15 result remains unfavorable to the
+current anomaly score. The fourth contribution is now an executed
+reproducibility path for NF-UNSW-NB15 and a prepared path for InSDN, UNSW-NB15
+CSV, CICDDoS, TON-IoT, and Bot-IoT.
 
 \section{Related Work}
 
@@ -556,6 +566,14 @@ reported metrics are computed on the held-out test split.
 
 \section{Results}
 
+The results should be read in two groups. Supervised baselines use attack
+labels during training and answer the question ``which classifier separates
+this benchmark best when labels are available?'' The LeWM-SDN reference,
+one-class distance, and raw-feature ridge surprise are anomaly-only detectors:
+they estimate normal behavior and set thresholds from normal scores. The
+scientific value of LeWM-SDN in this version is therefore anchored primarily in
+the anomaly-only comparison, not in outperforming label-supervised ML/DL.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{baseline_f1_comparison.png}
@@ -644,10 +662,16 @@ PyTorch temporal GNN JEPA (8 epochs) & 0.0000 & 0.0000 & 0.0000 & 0.3285 \\
 
 The LeWM-SDN reference detector reaches high recall and F1, but it does not
 outperform the supervised logistic, boosting, CNN, LSTM, or MLP classifiers on
-this synthetic dataset. This is an important correction to the earlier draft: the current
-evidence demonstrates that the predictive latent pipeline runs and is
-competitive with unsupervised feature-distance detection, not that it is
-superior to supervised ML/DL on a public benchmark. The perfect supervised
+this synthetic dataset. This is expected because those baselines are trained
+with attack labels. The fairer anomaly-only reading is more favorable: the
+standalone LeWM-SDN reference reaches F1 $=0.9796$ without attack labels,
+slightly above one-class feature distance (F1 $=0.9717$) and far above
+raw-feature ridge surprise (F1 $=0.2644$); under the stricter aligned protocol
+in Table~\ref{tab:baseline}, it remains close to one-class distance and still
+substantially improves over raw-feature next-state prediction. This supports
+the narrower claim that latent predictive dynamics add value when labeled
+attacks are unavailable. It does not support the stronger claim that LeWM-SDN
+is superior to supervised ML/DL on a public benchmark. The perfect supervised
 scores also suggest that the generated dataset is too separable to support
 strong scientific claims.
 
@@ -661,28 +685,37 @@ claim neural detection quality.
 
 Nevertheless, the result is useful for engineering validation. The raw-feature
 next-state baseline performs poorly, while the latent surprise + phase version
-works well. This supports the claim that latent representation and phase-aware
-scoring are useful even in the controlled setting.
+works well on the controlled graph sequence. This is the paper's current
+positive result: replacing raw-feature prediction with latent predictive
+dynamics can improve normal-only anomaly detection. The public result shows
+that this benefit has not yet transferred reliably to NF-UNSW-NB15 without
+better calibration and tuning.
 
 \section{Discussion}
 
-The revised experiment directly addresses the absence of baselines. It also
-shows why the synthetic dataset cannot be the final benchmark: supervised
-classifiers solve it perfectly. A publishable Q4-level paper should therefore
-run the PyTorch temporal GNN JEPA on the public NF-UNSW-NB15 graph or on InSDN
-and compare against classical ML and DL baselines. The current public benchmark
-already includes logistic regression, a lightweight gradient-boosted stump
-baseline, MLP, one-class distance, and next-state surprise baselines. The
-synthetic benchmark also includes PyTorch CNN and LSTM baselines. The next
-public benchmark iteration should add external packages such as XGBoost or
-random forest where dependencies are available.
+The revised experiment directly addresses the absence of baselines and makes
+the comparison fairer by separating label-free anomaly detection from
+label-supervised classification. The positive evidence is that LeWM-SDN can
+detect controlled SDN/DDoS disruptions without attack labels and improves
+substantially over raw-feature predictive surprise. At the same time, the
+synthetic dataset cannot be the final benchmark because supervised classifiers
+solve it nearly perfectly. A publishable Q4-level paper should therefore treat
+the current public NF-UNSW-NB15 result as a diagnostic failure case and add a
+stronger public normal-only evaluation, preferably on InSDN or a temporally
+split SDN trace. The current public benchmark already includes logistic
+regression, a lightweight gradient-boosted stump baseline, MLP, one-class
+distance, and next-state surprise baselines. The synthetic benchmark also
+includes PyTorch CNN and LSTM baselines. The next public benchmark iteration
+should add external packages such as XGBoost or random forest where
+dependencies are available.
 
 The feedback also noted that the original contribution claims were broader
 than the experiments. This revision narrows the claims. We do not claim that
 MPC/CEM mitigation has been validated, only that the model exposes a latent
 rollout and defense-cost hook. We also do not claim that the temporal GNN JEPA
 is competitive yet. The implemented PyTorch training path now runs, but it
-requires public data and tuning before it can support a publication claim.
+requires public data, threshold calibration, and tuning before it can support a
+publication claim beyond the controlled anomaly-only result.
 
 \section{Threats to Validity}
 
@@ -715,12 +748,15 @@ LeWM-SDN converts the world-model idea from pixel-based physical environments
 to graph-based SDN network dynamics. The revised project now uses Springer
 LNCS formatting, includes related work, gives explicit method equations,
 adds figures, compares against baselines, and provides public-dataset
-conversion scripts. The current executable result remains an offline controlled
-validation rather than a final public benchmark. The next decisive step is to
-run the implemented temporal GNN JEPA on the public NF-UNSW-NB15 graph or
-InSDN, tune it beyond the current CPU smoke run, and compare it with the
-existing boosting/CNN/LSTM/MLP baselines plus external random-forest, XGBoost,
-and autoencoder baselines.
+conversion scripts. The current positive result is deliberately narrow:
+LeWM-SDN provides a normal-only latent predictive detector that improves over
+raw-feature next-state surprise and is competitive with simple one-class
+distance on controlled SDN graph dynamics. The public NF-UNSW-NB15 result does
+not yet support a superiority claim, especially against supervised classifiers.
+The next decisive step is to run the implemented temporal GNN JEPA on InSDN or
+a temporally split public SDN trace, tune it beyond the current CPU smoke run,
+and compare it with the existing boosting/CNN/LSTM/MLP baselines plus external
+random-forest, XGBoost, and autoencoder baselines.
 
 \begin{thebibliography}{30}
 
