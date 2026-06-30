@@ -1,0 +1,78 @@
+output_model_name: synthetic_torch
+output_dir: outputs\checkpoints\synthetic_torch
+train_split: 0.9
+seed: 3072
+embed_dim: 32
+prog_dim: 8
+history_size: 4
+device: auto
+gradient_clip_val: 1.0
+checkpoint_interval: 4
+log_every: 1
+trainer:
+  max_epochs: 8
+loader:
+  batch_size: 64
+  num_workers: 0
+  pin_memory: true
+optimizer:
+  lr: 5.0e-05
+  weight_decay: 0.001
+num_preds: 1
+loss:
+  sigreg:
+    weight: 0.09
+    kwargs:
+      knots: 17
+      num_proj: 16
+  triplet:
+    weight: 0.02
+    margin: 0.2
+  straight:
+    weight: 0.01
+  metric:
+    weight: 0.0
+    target_keys:
+    - congestion
+    - packet_loss
+data:
+  path: data\processed\synthetic_sdn_ddos.npz
+  num_steps: 10
+  normalize: true
+  normal_only: true
+  normal_label: 0
+  label_key: label
+  action_key: null
+  num_actions: 5
+model:
+  _target_: jepa.SDNJEPA
+  encoder:
+    _target_: module.TemporalGraphEncoder
+    node_feature_dim: 8
+    edge_feature_dim: 5
+    hidden_dim: 32
+    latent_dim: 32
+    prog_dim: 8
+    cont_dim: 24
+    depth: 2
+    temporal_layers: 1
+    dropout: 0.1
+  predictor:
+    _target_: module.ARPredictor
+    num_frames: 9
+    input_dim: 32
+    hidden_dim: 32
+    output_dim: 32
+    depth: 1
+    heads: 4
+    mlp_dim: 128
+    dim_head: 8
+    dropout: 0.1
+    emb_dropout: 0.0
+  action_encoder:
+    _target_: module.MitigationActionEncoder
+    num_actions: 5
+    input_dim: null
+    emb_dim: 32
+    no_action_id: 0
+  metric_hidden_dim: 128

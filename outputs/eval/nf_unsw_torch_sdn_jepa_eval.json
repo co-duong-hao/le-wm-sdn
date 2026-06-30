@@ -1,0 +1,32 @@
+{
+  "checkpoint": "outputs\\checkpoints\\nf_unsw_torch\\nf_unsw_torch_best.pt",
+  "dataset": "data\\processed\\nf_unsw_nb15_graph.npz",
+  "num_transitions": 14535,
+  "threshold": 1.065425157546997,
+  "score_mean": 0.7872856855392456,
+  "score_std": 0.10473302751779556,
+  "surprise_mean": 0.7774561643600464,
+  "phase_drift_mean": 0.04914781078696251,
+  "num_flagged": 49,
+  "metrics": {
+    "tp": 0,
+    "tn": 4775,
+    "fp": 49,
+    "fn": 9711,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "accuracy": 0.3285173718610251
+  },
+  "oracle_best_threshold_metrics": {
+    "tp": 9711,
+    "tn": 0,
+    "fp": 4824,
+    "fn": 0,
+    "precision": 0.6681114551083591,
+    "recall": 1.0,
+    "f1": 0.8010393466963622,
+    "accuracy": 0.6681114551083591,
+    "threshold": 0.5557618141174316
+  }
+}

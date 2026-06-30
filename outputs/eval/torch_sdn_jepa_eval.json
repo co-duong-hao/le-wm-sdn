@@ -1,0 +1,32 @@
+{
+  "checkpoint": "outputs\\checkpoints\\synthetic_torch\\synthetic_torch_best.pt",
+  "dataset": "data\\processed\\synthetic_sdn_ddos.npz",
+  "num_transitions": 10719,
+  "threshold": 1.3449026346206665,
+  "score_mean": 0.8333302140235901,
+  "score_std": 0.17932236194610596,
+  "surprise_mean": 0.7747957706451416,
+  "phase_drift_mean": 0.29267188906669617,
+  "num_flagged": 93,
+  "metrics": {
+    "tp": 7,
+    "tn": 8473,
+    "fp": 86,
+    "fn": 2153,
+    "precision": 0.07526881720430108,
+    "recall": 0.0032407407407407406,
+    "f1": 0.006213936972924989,
+    "accuracy": 0.7911185744938893
+  },
+  "oracle_best_threshold_metrics": {
+    "tp": 2160,
+    "tn": 0,
+    "fp": 8559,
+    "fn": 0,
+    "precision": 0.20151133501259447,
+    "recall": 1.0,
+    "f1": 0.3354297693920335,
+    "accuracy": 0.20151133501259447,
+    "threshold": 0.42011627554893494
+  }
+}

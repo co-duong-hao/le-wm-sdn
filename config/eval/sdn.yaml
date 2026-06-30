@@ -1,0 +1,25 @@
+checkpoint: outputs/checkpoints/lewm_sdn/lewm_sdn_best.pt
+device: auto
+
+data:
+  path: ???
+  num_steps: 16
+  normalize: true
+  normal_label: 0
+  label_key: label
+  action_key: null
+
+loader:
+  batch_size: 128
+  num_workers: 0
+  pin_memory: true
+
+anomaly:
+  alpha: 1.0
+  beta: 0.2
+  threshold: null
+  percentile: 99.0
+  threshold_from_normal: true
+
+output:
+  path: outputs/eval/sdn_anomaly.json

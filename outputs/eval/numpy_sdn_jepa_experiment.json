@@ -1,0 +1,50 @@
+{
+  "dataset": "data\\processed\\synthetic_sdn_ddos.npz",
+  "method": "numpy_sdn_jepa_reference",
+  "latent_dim": 16,
+  "prog_dim": 2,
+  "history": 8,
+  "alpha": 1.0,
+  "beta": 0.2,
+  "threshold_percentile": 99.0,
+  "threshold": 5.005514621734619,
+  "num_transitions": 1192,
+  "dataset_shape": {
+    "node_features": [
+      1200,
+      29,
+      8
+    ],
+    "edge_index": [
+      2,
+      64
+    ],
+    "edge_features": [
+      1200,
+      64,
+      5
+    ],
+    "label": [
+      1200
+    ]
+  },
+  "label_counts": {
+    "normal": 960,
+    "attack": 240
+  },
+  "score_mean": 244.3817596435547,
+  "surprise_mean": 244.2268829345703,
+  "phase_drift_mean": 0.7744392156600952,
+  "normal_score_mean": 1.0056030750274658,
+  "attack_score_mean": 1209.7738037109375,
+  "metrics": {
+    "tp": 240,
+    "tn": 942,
+    "fp": 10,
+    "fn": 0,
+    "precision": 0.96,
+    "recall": 1.0,
+    "f1": 0.9795918367346939,
+    "accuracy": 0.9916107382550335
+  }
+}

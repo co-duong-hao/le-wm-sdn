@@ -1,0 +1,19 @@
+path: ???
+
+# Each training sample is a sliding window of dynamic SDN graph snapshots.
+# If null, train.py uses history_size + num_preds.
+num_steps: null
+
+normalize: true
+
+# Train the world model on normal behavior when labels are available.
+normal_only: true
+normal_label: 0
+label_key: label
+
+# Leave null to auto-detect mitigation_action or action.
+action_key: null
+
+# Discrete mitigation action vocabulary:
+# 0=no-op, 1=drop-flow, 2=rate-limit, 3=reroute, 4=install-filter
+num_actions: 5

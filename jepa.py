@@ -1,153 +1,190 @@
-"""JEPA Implementation"""
+"""SDN Joint-Embedding Predictive Architecture."""
 
 import torch
 import torch.nn.functional as F
 from einops import rearrange
 from torch import nn
 
-def detach_clone(v):
-    return v.detach().clone() if torch.is_tensor(v) else v
 
-class JEPA(nn.Module):
+def wrap_angle(delta):
+    """Map angle differences to [-pi, pi]."""
+    return torch.atan2(torch.sin(delta), torch.cos(delta))
+
+
+def phase_from_progress(z_prog):
+    """Compute the latent network phase from the first two progress dimensions."""
+    if z_prog.size(-1) < 2:
+        return z_prog.new_zeros(z_prog.shape[:-1])
+    return torch.atan2(z_prog[..., 1], z_prog[..., 0])
+
+
+def phase_drift(theta):
+    """Absolute wrapped phase change between adjacent timesteps."""
+    if theta.size(1) < 2:
+        return theta.new_zeros(theta.size(0), 0)
+    return wrap_angle(theta[:, 1:] - theta[:, :-1]).abs()
+
+
+def straightening_loss(z):
+    """Encourage consecutive latent velocities to point in the same direction."""
+    if z.size(1) < 3:
+        return z.new_zeros(())
+    velocity = z[:, 1:] - z[:, :-1]
+    return -F.cosine_similarity(velocity[:, 1:], velocity[:, :-1], dim=-1).mean()
+
+
+def temporal_triplet_loss(z_prog, margin=0.2):
+    """
+    Preserve temporal order in z_prog by keeping adjacent states closer than
+    states two steps apart. This is label-free and can be replaced by a
+    supervised triplet sampler when attack labels are available.
+    """
+    if z_prog.size(1) < 3:
+        return z_prog.new_zeros(())
+    anchor = z_prog[:, :-2]
+    positive = z_prog[:, 1:-1]
+    negative = z_prog[:, 2:]
+    pos_dist = (anchor - positive).pow(2).sum(dim=-1)
+    neg_dist = (anchor - negative).pow(2).sum(dim=-1)
+    return F.relu(pos_dist - neg_dist + margin).mean()
+
+
+class SDNJEPA(nn.Module):
+    """LeWM-style predictive latent world model for SDN DDoS defense."""
 
     def __init__(
         self,
         encoder,
         predictor,
         action_encoder,
-        projector=None,
-        pred_proj=None,
+        metric_hidden_dim=128,
     ):
         super().__init__()
-
         self.encoder = encoder
         self.predictor = predictor
         self.action_encoder = action_encoder
-        self.projector = projector or nn.Identity()
-        self.pred_proj = pred_proj or nn.Identity()
+        self.metric_head = nn.Sequential(
+            nn.LayerNorm(encoder.latent_dim),
+            nn.Linear(encoder.latent_dim, metric_hidden_dim),
+            nn.GELU(),
+            nn.Linear(metric_hidden_dim, 2),
+        )
 
     def encode(self, info):
-        """Encode observations and actions into embeddings.
-        info: dict with pixels and action keys
-        """
+        """Encode an SDN graph sequence into z, z_prog, and z_cont."""
+        if "node_features" not in info:
+            raise KeyError("SDNJEPA expects `node_features` in the batch")
+        if "edge_index" not in info:
+            raise KeyError("SDNJEPA expects `edge_index` in the batch")
 
-        pixels = info['pixels'].float()
-        b = pixels.size(0)
-        pixels = rearrange(pixels, "b t ... -> (b t) ...") # flatten for encoding
-        output = self.encoder(pixels, interpolate_pos_encoding=True)
-        pixels_emb = output.last_hidden_state[:, 0]  # cls token
-        emb = self.projector(pixels_emb)
-        info["emb"] = rearrange(emb, "(b t) d -> b t d", b=b)
+        output = dict(info)
+        encoded = self.encoder(
+            node_features=output["node_features"],
+            edge_index=output["edge_index"],
+            edge_features=output.get("edge_features"),
+            node_mask=output.get("node_mask"),
+        )
+        z = encoded["z"]
+        output["emb"] = z
+        output["z_prog"] = encoded["z_prog"]
+        output["z_cont"] = encoded["z_cont"]
+        output["theta"] = phase_from_progress(output["z_prog"])
 
-        if "action" in info:
-            info["act_emb"] = self.action_encoder(info["action"])
-
-        return info
+        action = output.get("mitigation_action")
+        if action is None:
+            action = output.get("action")
+        output["act_emb"] = self.action_encoder(
+            action,
+            batch_size=z.size(0),
+            steps=z.size(1),
+            device=z.device,
+        )
+        return output
 
     def predict(self, emb, act_emb):
-        """Predict next state embedding
-        emb: (B, T, D)
-        act_emb: (B, T, A_emb)
-        """
+        """Predict the next SDN latent state embedding."""
         preds = self.predictor(emb, act_emb)
-        preds = self.pred_proj(rearrange(preds, "b t d -> (b t) d"))
-        preds = rearrange(preds, "(b t) d -> b t d", b=emb.size(0))
         return preds
 
-    ####################
-    ## Inference only ##
-    ####################
-
-    def rollout(self, info, action_sequence, history_size: int = 3):
-        """Rollout the model given an initial info dict and action sequence.
-        pixels: (B, S, T, C, H, W)
-        action_sequence: (B, S, T, action_dim)
-         - S is the number of action plan samples
-         - T is the time horizon
+    def state_metrics(self, emb):
         """
+        Estimate latent defense metrics:
+        channel 0 = congestion/controller pressure, channel 1 = packet drop/loss.
+        """
+        return F.softplus(self.metric_head(emb))
 
-        assert "pixels" in info, "pixels not in info_dict"
-        H = info["pixels"].size(2)
-        B, S, T = action_sequence.shape[:3]
-        act_0, act_future = torch.split(action_sequence, [H, T - H], dim=2)
-        info["action"] = act_0
-        n_steps = T - H
+    def anomaly_score(self, info, alpha=1.0, beta=0.2):
+        """
+        Score DDoS anomalies with prediction surprise plus latent phase drift.
 
-        # copy and encode initial info dict
-        _init = {k: v[:, 0] for k, v in info.items() if torch.is_tensor(v)}
-        _init = self.encode(_init)
-        emb = info["emb"] = _init["emb"].unsqueeze(1).expand(B, S, -1, -1)
-        _init = {k: detach_clone(v) for k, v in _init.items()}
+        Returns per-transition tensors with shape (B, T-1).
+        """
+        output = self.encode(info)
+        emb = output["emb"]
+        act_emb = output["act_emb"]
+        if emb.size(1) < 2:
+            raise ValueError("At least two timesteps are required for anomaly scoring")
 
-        # flatten batch and sample dimensions for rollout
-        emb = rearrange(emb, "b s ... -> (b s) ...").clone()
-        act = rearrange(act_0, "b s ... -> (b s) ...")
-        act_future = rearrange(act_future, "b s ... -> (b s) ...")
+        pred = self.predict(emb[:, :-1], act_emb[:, :-1])
+        target = emb[:, 1 : 1 + pred.size(1)]
+        surprise = (pred - target).pow(2).mean(dim=-1)
+        drift = phase_drift(output["theta"])
+        drift = drift[:, : surprise.size(1)]
+        score = alpha * surprise + beta * drift
+        return {
+            "score": score,
+            "surprise": surprise,
+            "phase_drift": drift,
+            "theta": output["theta"],
+            "emb": emb,
+        }
 
-        # rollout predictor autoregressively for n_steps
-        HS = history_size
-        for t in range(n_steps):
-            act_emb = self.action_encoder(act)
-            emb_trunc = emb[:, -HS:]  # (BS, HS, D)
-            act_trunc = act_emb[:, -HS:]  # (BS, HS, A_emb)
-            pred_emb = self.predict(emb_trunc, act_trunc)[:, -1:]  # (BS, 1, D)
-            emb = torch.cat([emb, pred_emb], dim=1)  # (BS, T+1, D)
+    def rollout_latent(self, emb, action_sequence, history_size=3):
+        """
+        Roll latent states forward under candidate mitigation actions.
 
-            next_act = act_future[:, t : t + 1, :]  # (BS, 1, action_dim)
-            act = torch.cat([act, next_act], dim=1)  # (BS, T+1, action_dim)
+        emb: (B, H, D)
+        action_sequence: (B, S, T) for discrete actions or (B, S, T, A)
+        """
+        batch_size, num_samples, horizon = action_sequence.shape[:3]
+        emb = emb.unsqueeze(1).expand(-1, num_samples, -1, -1)
+        emb = rearrange(emb, "b s h d -> (b s) h d").clone()
+        actions = rearrange(action_sequence, "b s t ... -> (b s) t ...")
 
-        # predict the last state
-        act_emb = self.action_encoder(act)  # (BS, T, A_emb)
-        emb_trunc = emb[:, -HS:]  # (BS, HS, D)
-        act_trunc = act_emb[:, -HS:]  # (BS, HS, A_emb)
-        pred_emb = self.predict(emb_trunc, act_trunc)[:, -1:]  # (BS, 1, D)
-        emb = torch.cat([emb, pred_emb], dim=1)
+        for t in range(horizon):
+            prefix = actions[:, : t + 1]
+            act_emb = self.action_encoder(
+                prefix,
+                batch_size=prefix.size(0),
+                steps=prefix.size(1),
+                device=emb.device,
+            )
+            pred = self.predict(emb[:, -history_size:], act_emb[:, -history_size:])[:, -1:]
+            emb = torch.cat([emb, pred], dim=1)
 
-        # unflatten batch and sample dimensions
-        pred_rollout = rearrange(emb, "(b s) ... -> b s ...", b=B, s=S)
-        info["predicted_emb"] = pred_rollout
+        return rearrange(emb, "(b s) t d -> b s t d", b=batch_size, s=num_samples)
 
-        return info
+    def defense_cost(
+        self,
+        predicted_emb,
+        action_sequence=None,
+        congestion_weight=1.0,
+        packet_loss_weight=1.0,
+        mitigation_weight=0.05,
+    ):
+        """
+        MPC/CEM objective for SDN defense candidates.
 
-    def criterion(self, info_dict: dict):
-        """Compute the cost between predicted embeddings and goal embeddings."""
-        pred_emb = info_dict["predicted_emb"]  # (B,S, T-1, dim)
-        goal_emb = info_dict["goal_emb"]  # (B, S, T, dim)
+        predicted_emb: (B, S, T, D)
+        action_sequence: optional (B, S, T, ...) mitigation candidates
+        """
+        metrics = self.state_metrics(predicted_emb)
+        congestion = metrics[..., 0].mean(dim=-1)
+        packet_loss = metrics[..., 1].mean(dim=-1)
+        cost = congestion_weight * congestion + packet_loss_weight * packet_loss
 
-        goal_emb = goal_emb[..., -1:, :].expand_as(pred_emb)
-
-        # return last-step cost per action candidate
-        cost = F.mse_loss(
-            pred_emb[..., -1:, :],
-            goal_emb[..., -1:, :].detach(),
-            reduction="none",
-        ).sum(dim=tuple(range(2, pred_emb.ndim)))  # (B, S)
-
-        return cost
-
-    def get_cost(self, info_dict: dict, action_candidates: torch.Tensor):
-        """ Compute the cost of action candidates given an info dict with goal and initial state."""
-
-        assert "goal" in info_dict, "goal not in info_dict"
-
-        device = next(self.parameters()).device
-        for k in list(info_dict.keys()):
-            if torch.is_tensor(info_dict[k]):
-                info_dict[k] = info_dict[k].to(device)
-
-        goal = {k: v[:, 0] for k, v in info_dict.items() if torch.is_tensor(v)}
-        goal["pixels"] = goal["goal"]
-
-        for k in info_dict:
-            if k.startswith("goal_"):
-                goal[k[len("goal_") :]] = goal.pop(k)
-
-        goal.pop("action")
-        goal = self.encode(goal)
-
-        info_dict["goal_emb"] = goal["emb"]
-        info_dict = self.rollout(info_dict, action_candidates)
-
-        cost = self.criterion(info_dict)
-
+        if action_sequence is not None:
+            action_cost = action_sequence.float().abs()
+            action_cost = action_cost.reshape(action_cost.size(0), action_cost.size(1), -1)
+            cost = cost + mitigation_weight * action_cost.mean(dim=-1)
         return cost

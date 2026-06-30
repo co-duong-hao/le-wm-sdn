@@ -1,0 +1,20 @@
+{
+  "dataset": "data\\processed\\synthetic_sdn_ddos.npz",
+  "method": "numpy_ridge_next_state_baseline",
+  "window": 8,
+  "num_transitions": 1192,
+  "threshold": 2.929142951965332,
+  "score_mean": 149.82257080078125,
+  "normal_score_mean": 0.50529545545578,
+  "attack_score_mean": 742.1144409179688,
+  "metrics": {
+    "tp": 240,
+    "tn": 942,
+    "fp": 10,
+    "fn": 0,
+    "precision": 0.96,
+    "recall": 1.0,
+    "f1": 0.9795918367346939,
+    "accuracy": 0.9916107382550335
+  }
+}

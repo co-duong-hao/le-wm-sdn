@@ -1,0 +1,75 @@
+{
+  "dataset": "data\\processed\\synthetic_sdn_ddos.npz",
+  "history": 8,
+  "warmup": 600,
+  "epochs": 80,
+  "hidden_dim": 64,
+  "label_counts": {
+    "normal": 960,
+    "attack": 240
+  },
+  "window_shape": [
+    1192,
+    8,
+    26
+  ],
+  "results": [
+    {
+      "method": "supervised_torch_mlp",
+      "threshold": 0.5,
+      "train_loss": 0.04832479048054665,
+      "device": "cpu",
+      "score_mean": 0.20802992582321167,
+      "normal_score_mean": 0.012017529457807541,
+      "attack_score_mean": 0.9855457544326782,
+      "metrics": {
+        "tp": 237,
+        "tn": 949,
+        "fp": 3,
+        "fn": 3,
+        "precision": 0.9875,
+        "recall": 0.9875,
+        "f1": 0.9875,
+        "accuracy": 0.9949664429530202
+      }
+    },
+    {
+      "method": "supervised_torch_cnn",
+      "threshold": 0.5,
+      "train_loss": 0.15717826234176754,
+      "device": "cpu",
+      "score_mean": 0.21132826805114746,
+      "normal_score_mean": 0.018350346013903618,
+      "attack_score_mean": 0.9768072962760925,
+      "metrics": {
+        "tp": 236,
+        "tn": 948,
+        "fp": 4,
+        "fn": 4,
+        "precision": 0.9833333333333333,
+        "recall": 0.9833333333333333,
+        "f1": 0.9833333333333333,
+        "accuracy": 0.9932885906040269
+      }
+    },
+    {
+      "method": "supervised_torch_lstm",
+      "threshold": 0.5,
+      "train_loss": 0.16019419990479947,
+      "device": "cpu",
+      "score_mean": 0.21191447973251343,
+      "normal_score_mean": 0.018557343631982803,
+      "attack_score_mean": 0.9788978695869446,
+      "metrics": {
+        "tp": 236,
+        "tn": 948,
+        "fp": 4,
+        "fn": 4,
+        "precision": 0.9833333333333333,
+        "recall": 0.9833333333333333,
+        "f1": 0.9833333333333333,
+        "accuracy": 0.9932885906040269
+      }
+    }
+  ]
+}

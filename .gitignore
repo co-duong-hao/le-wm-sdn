@@ -99,6 +99,7 @@ ipython_config.py
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 # uv.lock
+.uv-cache/
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
@@ -202,6 +203,24 @@ cython_debug/
 # .vscode/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
+
+# LaTeX auxiliary files; keep generated PDFs only when they are deliverables.
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# Dataset extraction cache. Keep raw archives and processed graph tensors.
+data/raw/**/extracted/
+
+# Hydra timestamped run folders; keep curated outputs/eval and outputs/checkpoints.
+outputs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 
 # Ruff stuff:
 .ruff_cache/

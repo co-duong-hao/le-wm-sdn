@@ -1,0 +1,35 @@
+_target_: jepa.SDNJEPA
+
+encoder:
+  _target_: module.TemporalGraphEncoder
+  node_feature_dim: ???
+  edge_feature_dim: 0
+  hidden_dim: ${embed_dim}
+  latent_dim: ${embed_dim}
+  prog_dim: ${prog_dim}
+  cont_dim: null
+  depth: 3
+  temporal_layers: 1
+  dropout: 0.1
+
+predictor:
+  _target_: module.ARPredictor
+  num_frames: ${history_size}
+  input_dim: ${embed_dim}
+  hidden_dim: ${embed_dim}
+  output_dim: ${embed_dim}
+  depth: 4
+  heads: 8
+  mlp_dim: 768
+  dim_head: 32
+  dropout: 0.1
+  emb_dropout: 0.0
+
+action_encoder:
+  _target_: module.MitigationActionEncoder
+  num_actions: ${data.num_actions}
+  input_dim: null
+  emb_dim: ${embed_dim}
+  no_action_id: 0
+
+metric_hidden_dim: 128

@@ -1,184 +1,235 @@
+# LeWM-SDN
 
-# LeWorldModel
-### Stable End-to-End Joint-Embedding Predictive Architecture from Pixels
+LeWM-SDN adapts the core idea of LeWorldModel to DDoS detection and mitigation in
+Software-Defined Networking. It does not reuse the original pixel/robot model
+directly. Instead, it learns a latent world model of SDN network dynamics from
+dynamic graph snapshots.
 
-[Lucas Maes*](https://x.com/lucasmaes_), [Quentin Le Lidec*](https://quentinll.github.io/), [Damien Scieur](https://scholar.google.com/citations?user=hNscQzgAAAAJ&hl=fr), [Yann LeCun](https://yann.lecun.com/) and [Randall Balestriero](https://randallbalestriero.github.io/)
+The central question changes from:
 
-**Abstract:** Joint Embedding Predictive Architectures (JEPAs) offer a compelling framework for learning world models in compact latent spaces, yet existing methods remain fragile, relying on complex multi-term losses, exponential moving averages, pretrained encoders, or auxiliary supervision to avoid representation collapse. In this work, we introduce LeWorldModel (LeWM), the first JEPA that trains stably end-to-end from raw pixels using only two loss terms: a next-embedding prediction loss and a regularizer enforcing Gaussian-distributed latent embeddings. This reduces tunable loss hyperparameters from six to one compared to the only existing end-to-end alternative. With ~15M parameters trainable on a single GPU in a few hours, LeWM plans up to 48× faster than foundation-model-based world models while remaining competitive across diverse 2D and 3D control tasks. Beyond control, we show that LeWM's latent space encodes meaningful physical structure through probing of physical quantities. Surprise evaluation confirms that the model reliably detects physically implausible events.
-
-<p align="center">
-   <b>[ <a href="https://arxiv.org/pdf/2603.19312v1">Paper</a> | <a href="https://huggingface.co/collections/quentinll/lewm">Checkpoints &amp; Data</a> | <a href="https://le-wm.github.io/">Website</a> ]</b>
-</p>
-
-<br>
-
-<p align="center">
-  <img src="assets/lewm.gif" width="80%">
-</p>
-
-If you find this code useful, please reference it in your paper:
-```
-@article{maes_lelidec2026lewm,
-  title={LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels},
-  author={Maes, Lucas and Le Lidec, Quentin and Scieur, Damien and LeCun, Yann and Balestriero, Randall},
-  journal={arXiv preprint},
-  year={2026}
-}
+```text
+Is this packet/flow attack or normal?
 ```
 
-## Using the code
-This codebase builds on [stable-worldmodel](https://github.com/galilai-group/stable-worldmodel) for environment management, planning, and evaluation, and [stable-pretraining](https://github.com/galilai-group/stable-pretraining) for training. Together they reduce this repository to its core contribution: the model architecture and training objective.
+to:
 
-**Installation:**
+```text
+Is the next network state still plausible under the normal latent dynamics?
+```
+
+## Architecture
+
+The original LeWM mapping
+
+```text
+z_t = enc(o_t)
+z_hat_{t+1} = pred(z_t, a_t)
+```
+
+is translated to SDN as:
+
+```text
+G_t = (V_t, E_t, X_t, A_t)
+z_t = G-enc(G_t)
+z_hat_{t+1} = pred(z_t, u_t)
+```
+
+where `G_t` is the SDN graph snapshot and `u_t` is a mitigation action such as
+no-op, drop-flow, rate-limit, reroute, or install-filter.
+
+Implemented components:
+
+- `TemporalGraphEncoder` replaces the ViT image encoder with graph message
+  passing plus temporal recurrence.
+- `SDNJEPA` predicts future SDN latent states.
+- The latent vector is split into `z_prog` and `z_cont`.
+- `SIGReg` is applied only to `z_cont`, not the full latent vector.
+- Anomaly scoring combines prediction surprise and latent phase drift:
+
+```text
+A_t = alpha * ||z_hat_{t+1} - z_{t+1}||^2 + beta * |wrap(theta_t - theta_{t-1})|
+theta_t = atan2(z_prog[1], z_prog[0])
+```
+
+The code also includes a latent defense-cost hook for future MPC/CEM mitigation
+planning:
+
+```text
+C = congestion_weight * Congestion(z)
+  + packet_loss_weight * PacketLoss(z)
+  + mitigation_weight * Cost(u)
+```
+
+## Installation
+
+The SDN pipeline only needs the general PyTorch stack:
+
 ```bash
-uv venv --python=3.10
-source .venv/bin/activate
-uv pip install stable-worldmodel[train,env]
+pip install torch hydra-core omegaconf numpy einops
 ```
 
-## Data
+## Data Format
 
-Datasets use the HDF5 format for fast loading. Download the data from [HuggingFace](https://huggingface.co/collections/quentinll/lewm) and decompress with:
+Training and evaluation use `.npz`, `.pt`, or `.pth` files with tensor-like
+arrays.
 
-```bash
-tar --zstd -xvf archive.tar.zst
+Required:
+
+```text
+node_features: (T, N, F_node) or (Episodes, T, N, F_node)
+edge_index:    (2, E) or (E, 2)
 ```
 
-Place the extracted `.h5` files under `$STABLEWM_HOME` (defaults to `~/.stable-wm/`). You can override this path:
-```bash
-export STABLEWM_HOME=/path/to/your/storage
+Optional:
+
+```text
+edge_features:      (T, E, F_edge), (Episodes, T, E, F_edge), or (E, F_edge)
+action:             discrete ids (T) / (Episodes, T), or vectors (..., A)
+mitigation_action:  same as action
+label:              0 for normal, non-zero for attack
+node_mask:          (T, N) or (Episodes, T, N)
 ```
 
-Dataset names are specified without the `.h5` extension. For example, `config/train/data/pusht.yaml` references `pusht_expert_train`, which resolves to `$STABLEWM_HOME/pusht_expert_train.h5`.
+Typical node features include CPU, memory, flow count, queue length, packet
+rate, and controller load. Typical edge features include bandwidth, packet
+rate, packet loss, and link utilization.
 
 ## Training
 
-`jepa.py` contains the PyTorch implementation of LeWM. Training is configured via [Hydra](https://hydra.cc/) config files under `config/train/`.
-
-Before training, set your WandB `entity` and `project` in `config/train/lewm.yaml`:
-```yaml
-wandb:
-  config:
-    entity: your_entity
-    project: your_project
-```
-
-To launch training:
-```bash
-python train.py data=pusht
-```
-
-Checkpoints are saved to `$STABLEWM_HOME` upon completion.
-
-For baseline scripts, see the stable-worldmodel [scripts](https://github.com/galilai-group/stable-worldmodel/tree/main/scripts/train) folder.
-
-## Planning
-
-Evaluation configs live under `config/eval/`. Set the `policy` field to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix:
+By default, training filters to normal windows when `label` is available:
 
 ```bash
-# ✓ correct
-python eval.py --config-name=pusht.yaml policy=pusht/lewm
-
-# ✗ incorrect
-python eval.py --config-name=pusht.yaml policy=pusht/lewm_object.ckpt
+python train.py data.path=/path/to/sdn_train.npz
 ```
 
-## Pretrained Checkpoints
-
-Pretrained LeWM checkpoints for each environment are mirrored on the Hugging Face
-Hub (model repos), alongside the datasets (dataset repos) in the same collection:
-
-- [`quentinll/lewm-pusht`](https://huggingface.co/quentinll/lewm-pusht)
-- [`quentinll/lewm-cube`](https://huggingface.co/quentinll/lewm-cube)
-- [`quentinll/lewm-tworooms`](https://huggingface.co/quentinll/lewm-tworooms)
-- [`quentinll/lewm-reacher`](https://huggingface.co/quentinll/lewm-reacher)
-
-The full baseline checkpoint suite (PLDM, LeJEPA, IVL, IQL, GCBC, DINO-WM, DINO-WM-noprop)
-is available on [Google Drive](https://drive.google.com/drive/folders/1r31os0d4-rR0mdHc7OlY_e5nh3XT4r4e):
-
-<div align="center">
-
-| Method | two-room | pusht | cube | reacher |
-|:---:|:---:|:---:|:---:|:---:|
-| pldm | ✓ | ✓ | ✓ | ✓ |
-| lejepa | ✓ | ✓ | ✓ | ✓ |
-| ivl | ✓ | ✓ | ✓ | — |
-| iql | ✓ | ✓ | ✓ | — |
-| gcbc | ✓ | ✓ | ✓ | — |
-| dinowm | ✓ | ✓ | — | — |
-| dinowm_noprop | ✓ | ✓ | ✓ | ✓ |
-
-</div>
-
-## Loading a checkpoint
-
-### From the Drive archive
-
-Each tar archive contains two files per checkpoint:
-- `<name>_object.ckpt` — a serialized Python object for convenient loading; this is what `eval.py` and the `stable_worldmodel` API use
-- `<name>_weight.ckpt` — a weights-only checkpoint (`state_dict`) for cases where you want to load weights into your own model instance
-
-Place the extracted files under `$STABLEWM_HOME/` and load via:
-
-```python
-import stable_worldmodel as swm
-
-# Load the cost model (for MPC)
-cost = swm.policy.AutoCostModel('pusht/lewm')
-```
-
-`AutoCostModel` accepts:
-- `run_name` — checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix
-- `cache_dir` — optional override for the checkpoint root (defaults to `$STABLEWM_HOME`)
-
-The returned module is in `eval` mode with its PyTorch weights accessible via `.state_dict()`.
-
-### From the Hugging Face mirror
-
-The HF model repos ship the LeWM checkpoint as a `weights.pt` (state dict) plus a
-`config.json` describing the model. Convert once to produce the `_object.ckpt`
-that `eval.py` expects:
+Useful overrides:
 
 ```bash
-# download weights.pt + config.json
-hf download quentinll/lewm-pusht --local-dir $STABLEWM_HOME/hf_pusht
-
-# convert to object checkpoint under $STABLEWM_HOME/pusht/lewm_object.ckpt
-python - <<'PY'
-import json, torch, stable_pretraining as spt
-from pathlib import Path
-from jepa import JEPA
-from module import ARPredictor, Embedder, MLP
-import stable_worldmodel as swm
-
-src = Path(swm.data.utils.get_cache_dir(), "hf_pusht")
-out = Path(swm.data.utils.get_cache_dir(), "pusht", "lewm_object.ckpt")
-
-cfg = json.loads((src / "config.json").read_text())
-encoder = spt.backbone.utils.vit_hf(
-    cfg["encoder"]["size"],
-    patch_size=cfg["encoder"]["patch_size"],
-    image_size=cfg["encoder"]["image_size"],
-    pretrained=False, use_mask_token=False,
-)
-mlp = lambda k: MLP(input_dim=cfg[k]["input_dim"], output_dim=cfg[k]["output_dim"],
-                    hidden_dim=cfg[k]["hidden_dim"], norm_fn=torch.nn.BatchNorm1d)
-model = JEPA(
-    encoder=encoder,
-    predictor=ARPredictor(**cfg["predictor"]),
-    action_encoder=Embedder(**cfg["action_encoder"]),
-    projector=mlp("projector"),
-    pred_proj=mlp("pred_proj"),
-)
-sd = torch.load(src / "weights.pt", map_location="cpu", weights_only=False)
-model.load_state_dict(sd, strict=True)
-out.parent.mkdir(parents=True, exist_ok=True)
-torch.save(model, out)
-PY
+python train.py \
+  data.path=/path/to/sdn_train.npz \
+  history_size=8 \
+  data.num_steps=16 \
+  embed_dim=192 \
+  prog_dim=32
 ```
 
-After conversion, load via `swm.policy.AutoCostModel('pusht/lewm')` as usual.
+Checkpoints are written to:
 
-## Contact & Contributions
-Feel free to open [issues](https://github.com/lucas-maes/le-wm/issues)! For questions or collaborations, please contact `lucas.maes@mila.quebec`
+```text
+outputs/checkpoints/lewm_sdn/
+```
+
+The training objective is:
+
+```text
+L = L_pred(z)
+  + lambda_s * SIGReg(z_cont)
+  + lambda_r * L_triplet(z_prog)
+  + lambda_st * L_straight(z)
+```
+
+## Evaluation
+
+Run anomaly scoring on a labeled or unlabeled SDN sequence:
+
+```bash
+python eval.py \
+  checkpoint=outputs/checkpoints/lewm_sdn/lewm_sdn_best.pt \
+  data.path=/path/to/sdn_eval.npz \
+  data.num_steps=16
+```
+
+The output JSON contains the threshold, aggregate score statistics, number of
+flagged transitions, and precision/recall/F1 when labels are present.
+
+Default output:
+
+```text
+outputs/eval/sdn_anomaly.json
+```
+
+## Offline Experiment
+
+When public datasets cannot be downloaded, the repository includes a runnable
+offline SDN/DDoS experiment:
+
+```bash
+python scripts/generate_synthetic_sdn.py --output data/processed/synthetic_sdn_ddos.npz --steps 1200 --seed 3072
+python scripts/run_numpy_sdn_jepa_experiment.py --data data/processed/synthetic_sdn_ddos.npz --output outputs/eval/numpy_sdn_jepa_experiment.json --history 8 --latent-dim 16 --ridge 1 --alpha 1 --beta 0.2
+```
+
+The current recorded artifacts include:
+
+```text
+outputs/eval/baseline_comparison.json
+outputs/eval/nf_unsw_nb15_baseline_comparison.json
+outputs/eval/torch_supervised_baselines.json
+outputs/eval/torch_sdn_jepa_eval.json
+outputs/checkpoints/synthetic_torch/synthetic_torch_best.pt
+```
+
+The standalone NumPy predictive-latent reference reaches F1 = 0.9796 on the
+generated dataset; the fairer baseline-comparison protocol reports F1 = 0.9505.
+A lightweight NumPy gradient-boosting baseline reaches F1 = 0.9897.
+Supervised PyTorch baselines reach F1 = 0.9875 for MLP and F1 = 0.9833 for
+CNN/LSTM, while the short PyTorch Temporal GNN + SDN-JEPA smoke run reaches only
+F1 = 0.0062. This is recorded deliberately: the neural training path now runs,
+but the synthetic benchmark and short CPU schedule are not enough for a final
+scientific claim.
+
+The repository also includes a public NF-UNSW-NB15 graph conversion and
+baseline result:
+
+```text
+data/processed/nf_unsw_nb15_graph.npz
+outputs/eval/nf_unsw_nb15_public_experiment.md
+outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
+outputs/checkpoints/nf_unsw_torch/nf_unsw_torch_best.pt
+main.pdf
+outputs/eval/paper_build_report.md
+```
+
+On this public split, supervised logistic regression and NumPy MLP reach
+F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference only
+reaches F1 = 0.0841. The public PyTorch Temporal GNN + SDN-JEPA smoke run
+trains successfully but reaches F1 = 0.0000 with the default normal-score
+threshold. This is a negative but important benchmark result.
+
+The current recorded report is:
+
+```text
+outputs/eval/project_success_report.md
+docs/EXPERT_FEEDBACK_AUDIT.md
+outputs/eval/paper_build_report.md
+```
+
+## Source Map
+
+- `module.py`: Temporal GNN, mitigation action encoder, transformer predictor,
+  and SIGReg.
+- `jepa.py`: `SDNJEPA`, phase drift, anomaly score, straightening loss, and
+  defense-cost hook.
+- `sdn_data.py`: dynamic SDN graph window dataset.
+- `train.py`: SDN-JEPA training loop.
+- `eval.py`: DDoS anomaly scoring and metrics.
+- `scripts/run_numpy_sdn_jepa_experiment.py`: offline NumPy reference experiment
+  for the predictive latent anomaly score.
+- `scripts/run_torch_supervised_baselines.py`: supervised MLP/CNN/LSTM baseline
+  comparison on graph-feature windows.
+- `scripts/prepare_flow_csv_graph.py`: generic public flow-CSV converter for
+  CICIDS/CICDDoS/TON/Bot-IoT-style files with endpoint IP columns.
+- `config/train/model/sdn_jepa.yaml`: SDN model config.
+- `config/train/data/sdn.yaml`: SDN dataset config.
+- `config/eval/sdn.yaml`: anomaly evaluation config.
+
+## Research Status
+
+This repository now implements the feasible first stage of the document:
+
+```text
+Temporal GNN + JEPA prediction + anomaly score
+```
+
+The SD-JEPA split and phase anomaly are present. MPC/CEM mitigation planning is
+represented by latent rollout and defense-cost methods, but should be validated
+after the detection model is trained on real SDN traces.
