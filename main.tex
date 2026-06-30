@@ -13,6 +13,7 @@
 \raggedbottom
 \emergencystretch=2em
 \graphicspath{{figures/}}
+\providecommand{\Description}[1]{\par\small\emph{Alt text:} #1}
 
 \begin{document}
 
@@ -53,12 +54,11 @@ still reaches F1 $=0.9505$. Supervised logistic regression and a shallow MLP
 reach F1 $=1.0000$, showing that labels remain highly effective when they are
 available. On the public NF-UNSW-NB15 graph test split, supervised logistic
 regression and NumPy MLP reach F1 $=0.9908$, while the current LeWM-SDN latent
-surprise score only reaches F1 $=0.0841$. Small 8-epoch PyTorch temporal GNN
-JEPA runs decrease validation loss on both synthetic and public graphs, but
-the public run obtains F1 $=0$ under the default normal-score threshold. These
-results position LeWM-SDN as a promising normal-only predictive detector in
-controlled SDN dynamics, while also identifying public-data calibration and
-neural tuning as unresolved limitations.
+surprise score only reaches F1 $=0.0841$. A minimal PyTorch temporal GNN JEPA
+implementation sanity check decreases validation loss but is not yet used as a
+benchmark claim. These results position LeWM-SDN as a promising normal-only
+predictive detector in controlled SDN dynamics, while also identifying
+public-data calibration and neural tuning as unresolved limitations.
 
 \keywords{Software-Defined Networking \and DDoS Detection \and World Models
 \and Joint-Embedding Predictive Architecture \and Temporal Graph Neural
@@ -94,6 +94,10 @@ learned dynamics of normal SDN behavior?''
 temporal graph encoder, split into progress and content latent subspaces, and
 used for next-latent prediction. DDoS is detected by prediction surprise and
 latent phase drift.}
+\Description{A left-to-right architecture diagram showing SDN telemetry
+converted into dynamic graph snapshots, encoded into latent progress and
+content states, predicted forward by JEPA, and scored for DDoS anomaly
+detection.}
 \label{fig:architecture}
 \end{figure}
 
@@ -255,9 +259,9 @@ projected into a latent vector $z_t \in \mathbb{R}^D$.
 The default configuration uses latent dimension $D=192$, progress dimension
 $k=32$, three graph message-passing layers, one temporal recurrent layer, and
 dropout $0.1$. These values are chosen as a conservative first configuration
-for a PyTorch environment. The executed smoke run in this repository uses a
-smaller CPU configuration to keep the experiment reproducible on the current
-machine.
+for a PyTorch environment. The recorded implementation sanity check uses a
+smaller CPU configuration to verify the code path on the current machine; it is
+not reported as a tuned model benchmark.
 
 \subsection{Progress and Content Subspaces}
 
@@ -343,25 +347,10 @@ percentile of normal scores. This is an anomaly-detection setup: the predictive
 model can be trained only on normal windows, unlike supervised classifiers that
 require attack labels.
 
-\subsection{Mitigation Planning Hook}
-
-The repository also contains a latent rollout and defense-cost hook for future
-MPC/CEM mitigation. Given candidate action sequences
-$u_{t:t+H-1}^{(s)}$, the model rolls out latent futures
-$\hat{z}_{t+1:t+H}^{(s)}$ and evaluates:
-\begin{equation}
-C^{(s)} =
-\sum_{j=1}^{H}
-\left[
-\eta_c \mathrm{Congestion}(\hat{z}_{t+j}^{(s)})
-+ \eta_l \mathrm{PacketLoss}(\hat{z}_{t+j}^{(s)})
-+ \eta_u \mathrm{Cost}(u_{t+j-1}^{(s)})
-\right].
-\end{equation}
-Only the first action of the best sequence would be executed before observing
-the next network state and replanning. This paper does not claim mitigation
-results yet because public intrusion datasets do not contain logged mitigation
-actions.
+The repository also exposes latent rollout and defense-cost functions intended
+for future mitigation planning. They are not part of the evaluated detection
+method in this paper because the available public intrusion datasets do not
+contain logged mitigation actions or post-action network states.
 
 \section{Implementation and Reproducibility}
 
@@ -384,10 +373,10 @@ are:
   \texttt{scripts/prepare\_unsw\_nb15.py}: public-dataset conversion scripts.
 \end{itemize}
 
-The current machine has NumPy, PIL, and a local PyTorch virtual environment,
-but no LaTeX compiler. Therefore, the PyTorch training path is executed as a
-small CPU smoke experiment, while NumPy experiments provide faster baseline
-comparison, figures, and report generation.
+The current machine has NumPy, PIL, MiKTeX, and a local PyTorch virtual
+environment. The PyTorch training path is executed as a minimal implementation
+sanity check, while NumPy experiments provide faster baseline comparison,
+figures, and report generation.
 
 \section{Datasets}
 
@@ -451,6 +440,8 @@ mechanics of the proposed pipeline under a known topology.
 \caption{Timeline of the offline SDN/DDoS dataset. Normal traffic occupies the
 initial and inter-attack periods; DDoS bursts appear periodically after the
 normal prefix.}
+\Description{A horizontal timeline of the generated SDN dataset showing normal
+traffic at the start and between repeated DDoS burst intervals.}
 \label{fig:timeline}
 \end{figure}
 
@@ -503,7 +494,8 @@ sufficient. The revised experiment therefore compares ten methods:
   detector using normal-state PCA latent encoding, next-latent ridge
   prediction, and phase drift.
   \item \textbf{PyTorch temporal GNN JEPA}: the actual neural SDN-JEPA
-  architecture trained for a short CPU smoke run on normal synthetic windows.
+  architecture trained for a minimal implementation sanity check on normal
+  synthetic windows.
 \end{enumerate}
 
 The supervised baselines use attack labels during training and are therefore
@@ -555,7 +547,7 @@ The first 600 timesteps are used as the warmup/training region for supervised
 baselines. Anomaly methods estimate their thresholds from normal scores. NumPy
 methods and supervised PyTorch baselines are evaluated on aligned post-history
 transitions. The temporal GNN JEPA run uses overlapping graph windows from the
-same synthetic dataset and is reported as a short CPU training smoke test
+same synthetic dataset and is reported only as an implementation sanity check
 rather than a tuned benchmark run.
 
 For NF-UNSW-NB15, the source CSV is sorted with attack-heavy regions before
@@ -581,6 +573,10 @@ the anomaly-only comparison, not in outperforming label-supervised ML/DL.
 the offline SDN/DDoS dataset. Supervised logistic regression and neural
 baselines achieve very high F1, indicating that the synthetic dataset is easy
 for label-supervised classifiers.}
+\Description{A bar chart comparing F1 scores on the synthetic SDN/DDoS dataset.
+Supervised classifiers are near one, one-class distance and LeWM-SDN are high,
+raw-feature ridge surprise is low, and the minimal PyTorch JEPA sanity check is
+near zero.}
 \label{fig:baseline}
 \end{figure}
 
@@ -590,6 +586,8 @@ for label-supervised classifiers.}
 \caption{Mean anomaly score separation for the LeWM-SDN reference detector.
 DDoS windows have substantially higher predictive latent surprise than normal
 windows.}
+\Description{A two-group score comparison showing normal windows with low mean
+anomaly scores and DDoS windows with much higher predictive latent surprise.}
 \label{fig:score}
 \end{figure}
 
@@ -611,7 +609,7 @@ Supervised PyTorch CNN & 0.9833 & 0.9833 & 0.9833 & 0.9933 \\
 Supervised PyTorch LSTM & 0.9833 & 0.9833 & 0.9833 & 0.9933 \\
 Raw-feature ridge surprise & 0.7091 & 0.1625 & 0.2644 & 0.8180 \\
 LeWM-SDN latent surprise + phase & 0.9057 & 1.0000 & 0.9505 & 0.9790 \\
-PyTorch temporal GNN JEPA (8 epochs) & 0.0753 & 0.0032 & 0.0062 & 0.7911 \\
+PyTorch JEPA sanity check & 0.0753 & 0.0032 & 0.0062 & 0.7911 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -621,20 +619,24 @@ PyTorch temporal GNN JEPA (8 epochs) & 0.0753 & 0.0032 & 0.0062 & 0.7911 \\
 \includegraphics[width=\linewidth]{public_baseline_f1_comparison.png}
 \caption{Held-out test F1 comparison on the public NF-UNSW-NB15 graph dataset.
 Supervised baselines perform well, while the current normal-only surprise
-scores and the public Temporal GNN JEPA smoke run are not competitive.}
+scores and the minimal PyTorch JEPA sanity check are not competitive.}
+\Description{A bar chart comparing held-out F1 scores on NF-UNSW-NB15. The
+supervised logistic, MLP, CNN, and LSTM baselines are high; one-class and
+normal-only surprise scores are low; the PyTorch JEPA sanity check is zero.}
 \label{fig:publicbaseline}
 \end{figure}
 
 Table~\ref{tab:publicbaseline} reports the public-data benchmark run. It shows
 a different picture from the synthetic result. Supervised classifiers perform
 well on NF-UNSW-NB15, while the current one-class and predictive surprise
-variants have poor recall. The Temporal GNN JEPA public smoke run trains
+variants have poor recall. The minimal PyTorch JEPA public sanity check trains
 successfully but obtains F1 $=0$ under the default normal-score threshold; an
 oracle threshold diagnostic reaches F1 $=0.8010$, which indicates that the
 score distribution contains label information but that threshold calibration
-is currently inadequate. This public result is negative for the current anomaly
-formulation but valuable: it prevents the paper from relying only on an easy
-generated dataset.
+is currently inadequate. This sanity check is included to document
+executability, not to claim a tuned neural benchmark. The public anomaly result
+is negative for the current formulation but valuable: it prevents the paper
+from relying only on an easy generated dataset.
 
 \begin{table}[t]
 \centering
@@ -655,7 +657,7 @@ Supervised PyTorch CNN & 0.9781 & 0.9963 & 0.9871 & 0.9827 \\
 Supervised PyTorch LSTM & 0.9799 & 0.9963 & 0.9880 & 0.9839 \\
 Raw-feature ridge surprise & 0.8000 & 0.0669 & 0.1235 & 0.3676 \\
 LeWM-SDN latent surprise + phase & 0.7273 & 0.0446 & 0.0841 & 0.3527 \\
-PyTorch temporal GNN JEPA (8 epochs) & 0.0000 & 0.0000 & 0.0000 & 0.3285 \\
+PyTorch JEPA sanity check & 0.0000 & 0.0000 & 0.0000 & 0.3285 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -675,13 +677,12 @@ is superior to supervised ML/DL on a public benchmark. The perfect supervised
 scores also suggest that the generated dataset is too separable to support
 strong scientific claims.
 
-The PyTorch temporal GNN JEPA now has an executed training/evaluation trace:
-training loss decreases from $4.8049$ to $3.7158$ over eight CPU epochs and
-validation loss decreases from $3.7971$ to $3.1776$. However, its anomaly F1 is
-only $0.0062$ under the default 99th-percentile normal threshold. This is a
-negative but useful result: the neural architecture is runnable, yet the
-current small synthetic setup and short CPU training are not sufficient to
-claim neural detection quality.
+The PyTorch temporal GNN JEPA is reported only as an implementation sanity
+check. Training loss decreases from $4.8049$ to $3.7158$ and validation loss
+decreases from $3.7971$ to $3.1776$ in the recorded CPU run, which verifies
+that the temporal graph encoder, JEPA predictor, and anomaly evaluator execute
+end to end. Its anomaly F1 is only $0.0062$ under the default 99th-percentile
+normal threshold, so it is not used as evidence of neural detection quality.
 
 Nevertheless, the result is useful for engineering validation. The raw-feature
 next-state baseline performs poorly, while the latent surprise + phase version
@@ -717,6 +718,29 @@ is competitive yet. The implemented PyTorch training path now runs, but it
 requires public data, threshold calibration, and tuning before it can support a
 publication claim beyond the controlled anomaly-only result.
 
+\subsection{Future Mitigation Planning}
+
+The codebase includes a design hook for model-predictive mitigation, but this
+paper deliberately excludes it from the evaluated method. Public datasets used
+here provide traffic records and labels, not interventions such as drop-flow,
+rate-limit, reroute, or filter-install actions followed by observed
+post-action network states. A future controlled SDN testbed can use the learned
+latent dynamics for MPC/CEM-style action search. Given candidate action
+sequences $u_{t:t+H-1}^{(s)}$, the model would roll out latent futures
+$\hat{z}_{t+1:t+H}^{(s)}$ and evaluate:
+\begin{equation}
+C^{(s)} =
+\sum_{j=1}^{H}
+\left[
+\eta_c \mathrm{Congestion}(\hat{z}_{t+j}^{(s)})
++ \eta_l \mathrm{PacketLoss}(\hat{z}_{t+j}^{(s)})
++ \eta_u \mathrm{Cost}(u_{t+j-1}^{(s)})
+\right].
+\end{equation}
+Only the first action of the selected sequence would be executed before
+observing the next network state and replanning. This remains future work, not
+an experimental contribution of the current paper.
+
 \section{Threats to Validity}
 
 \paragraph{Synthetic data.}
@@ -727,9 +751,9 @@ paper therefore also includes a public NF-UNSW-NB15 graph experiment.
 
 \paragraph{Reference and neural implementations.}
 The strongest executed LeWM-SDN result still comes from the PCA--ridge NumPy
-reference. The PyTorch temporal GNN JEPA is now trained and evaluated, but its
-detection score is weak in the current short CPU run. This validates
-executability, not final neural performance.
+reference. The PyTorch temporal GNN JEPA is included as an implementation
+sanity check, not as a tuned benchmark. This validates executability, not final
+neural performance.
 
 \paragraph{Baseline fairness.}
 Supervised classifiers receive labels during training, whereas the anomaly
@@ -754,7 +778,7 @@ raw-feature next-state surprise and is competitive with simple one-class
 distance on controlled SDN graph dynamics. The public NF-UNSW-NB15 result does
 not yet support a superiority claim, especially against supervised classifiers.
 The next decisive step is to run the implemented temporal GNN JEPA on InSDN or
-a temporally split public SDN trace, tune it beyond the current CPU smoke run,
+a temporally split public SDN trace, tune it beyond the current sanity check,
 and compare it with the existing boosting/CNN/LSTM/MLP baselines plus external
 random-forest, XGBoost, and autoencoder baselines.
 

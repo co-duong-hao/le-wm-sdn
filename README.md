@@ -52,7 +52,8 @@ theta_t = atan2(z_prog[1], z_prog[0])
 ```
 
 The code also includes a latent defense-cost hook for future MPC/CEM mitigation
-planning:
+planning. This is not part of the evaluated paper results because the public
+datasets used here do not contain logged mitigation actions:
 
 ```text
 C = congestion_weight * Congestion(z)
@@ -174,10 +175,9 @@ distance at F1 = 0.9717 and far above raw-feature ridge surprise at F1 = 0.2644.
 The stricter aligned baseline-comparison protocol reports F1 = 0.9505.
 A lightweight supervised NumPy gradient-boosting baseline reaches F1 = 0.9897.
 Supervised PyTorch baselines reach F1 = 0.9875 for MLP and F1 = 0.9833 for
-CNN/LSTM, while the short PyTorch Temporal GNN + SDN-JEPA smoke run reaches only
-F1 = 0.0062. This is recorded deliberately: the neural training path now runs,
-but the synthetic benchmark and short CPU schedule are not enough for a final
-scientific claim.
+CNN/LSTM, while the minimal PyTorch Temporal GNN + SDN-JEPA sanity check reaches
+only F1 = 0.0062. This is recorded deliberately to show that the neural code
+path executes, not to claim a tuned neural benchmark.
 
 The repository also includes the recorded public NF-UNSW-NB15 results:
 
@@ -194,7 +194,7 @@ instructions in `docs/DATASETS.md`.
 
 On this public split, supervised logistic regression and NumPy MLP reach
 F1 = 0.9908, while the current LeWM-SDN latent surprise + phase reference only
-reaches F1 = 0.0841. The public PyTorch Temporal GNN + SDN-JEPA smoke run
+reaches F1 = 0.0841. The public PyTorch Temporal GNN + SDN-JEPA sanity check
 trains successfully but reaches F1 = 0.0000 with the default normal-score
 threshold. This is a negative but important public benchmark result and should
 be read as a calibration/tuning limitation, not as evidence that the controlled
@@ -236,5 +236,6 @@ Temporal GNN + JEPA prediction + anomaly score
 ```
 
 The SD-JEPA split and phase anomaly are present. MPC/CEM mitigation planning is
-represented by latent rollout and defense-cost methods, but should be validated
-after the detection model is trained on real SDN traces.
+represented only as a future-work latent rollout and defense-cost hook; it
+should be validated later in a controlled SDN testbed with logged actions and
+post-action states.

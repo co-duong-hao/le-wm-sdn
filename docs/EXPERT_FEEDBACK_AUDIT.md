@@ -16,7 +16,7 @@ there is executable or file-level evidence in the workspace.
 | 4 | Paper length below 12-20 pages | Addressed | MiKTeX `pdflatex` renders `main.pdf` as 16 pages; see `outputs/eval/paper_build_report.md` |
 | 5 | Wrong format, not LNCS | Addressed | `main.tex` uses `\documentclass[runningheads]{llncs}` and `llncs.cls` is present |
 | 6 | Related Work too thin | Addressed in draft | `main.tex` has a Related Work section and about 20-30 bibliography entries |
-| 7 | Method lacks detail | Addressed in draft | `main.tex` includes Temporal GNN equations, latent split, SIGReg, anomaly score, and MPC/CEM formulas |
+| 7 | Method lacks detail | Addressed in draft | `main.tex` includes Temporal GNN equations, latent split, SIGReg, anomaly score, and moves unevaluated MPC/CEM mitigation to Future Work |
 | 8 | Contributions mismatch experiments | Improved, still limited | Contributions now state offline/public validation and caveats; public PyTorch JEPA is executed but not competitive |
 | 9 | No figures/diagrams | Addressed | `figures/architecture_pipeline.png`, `dataset_timeline.png`, `baseline_f1_comparison.png`, `score_separation.png` |
 
@@ -33,7 +33,7 @@ The current baseline suite includes:
 - supervised PyTorch LSTM
 - raw-feature ridge next-state surprise
 - LeWM-SDN latent surprise + phase reference
-- PyTorch Temporal GNN + SDN-JEPA smoke run
+- PyTorch Temporal GNN + SDN-JEPA implementation sanity check
 
 Key recorded metrics on `data/processed/synthetic_sdn_ddos.npz`:
 
@@ -48,7 +48,7 @@ Key recorded metrics on `data/processed/synthetic_sdn_ddos.npz`:
 | Supervised PyTorch LSTM | 0.9833 | 0.9833 | 0.9833 | 0.9933 |
 | Raw-feature ridge surprise | 0.7091 | 0.1625 | 0.2644 | 0.8180 |
 | LeWM-SDN latent surprise + phase | 0.9057 | 1.0000 | 0.9505 | 0.9790 |
-| PyTorch Temporal GNN JEPA, 8 epochs | 0.0753 | 0.0032 | 0.0062 | 0.7911 |
+| PyTorch JEPA sanity check | 0.0753 | 0.0032 | 0.0062 | 0.7911 |
 
 Interpretation: this fixes the absence of baseline comparison, but it also
 shows that the synthetic dataset is too easy for supervised baselines. These
@@ -85,7 +85,7 @@ Public NF-UNSW-NB15 held-out test metrics:
 | Supervised PyTorch LSTM | 0.9799 | 0.9963 | 0.9880 | 0.9839 |
 | Raw-feature ridge surprise | 0.8000 | 0.0669 | 0.1235 | 0.3676 |
 | LeWM-SDN latent surprise + phase | 0.7273 | 0.0446 | 0.0841 | 0.3527 |
-| PyTorch Temporal GNN JEPA, 8 epochs | 0.0000 | 0.0000 | 0.0000 | 0.3285 |
+| PyTorch JEPA sanity check | 0.0000 | 0.0000 | 0.0000 | 0.3285 |
 
 ## Public Dataset Status
 
@@ -129,7 +129,7 @@ outputs/eval/torch_sdn_jepa_eval.json
 outputs/eval/nf_unsw_torch_sdn_jepa_eval.json
 ```
 
-Training loss decreased in both eight-epoch CPU smoke runs, but anomaly
+Training loss decreased in the recorded CPU sanity checks, but anomaly
 detection quality is poor. This proves the neural code path runs; it does not
 prove the model is competitive.
 
