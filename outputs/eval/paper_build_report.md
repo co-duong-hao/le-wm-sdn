@@ -16,7 +16,7 @@ The command was run multiple times to resolve cross-references and citations.
 ## Result
 
 ```text
-Output written on main.pdf (17 pages, 471902 bytes).
+Output written on main.pdf (18 pages, 474874 bytes).
 ```
 
 The rendered PDF therefore satisfies the FISAT/Springer full-paper page range
